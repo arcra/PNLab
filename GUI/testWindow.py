@@ -15,7 +15,7 @@ class testWindow(object):
         self.root = Tkinter.Tk()
         self.pn = PetriNet(name = 'test')
         p1 = Place('myAction', PlaceTypes.ACTION, Vec2(150, 250))
-        t = Transition('transition1', TransitionTypes.IMMEDIATE, Vec2(250, 250), False)
+        t = Transition('transition1', TransitionTypes.IMMEDIATE, Vec2(250, 250))
         p2 = Place('result', PlaceTypes.PREDICATE, Vec2(500, 250))
         self.pn.add_place(p1)
         self.pn.add_place(p2)
@@ -24,6 +24,14 @@ class testWindow(object):
         self.pn.add_arc(t, p2)
     
         self.pne = PNEditor(self.root, width=600, height=400, grid = True, PetriNet = self.pn)
+        '''
+        self.pne.add_place(p1)
+        self.pne.add_place(p2)
+        self.pne.add_transition(t)
+        self.pne.add_arc(p1, t)
+        self.pne.add_arc(t, p2)
+        '''
+        
         self.pne.grid({'row': 0, 'column': 0})
     
         self.btn = Tkinter.Button(self.root, text = 'Reload Petri Net', command = self.btnCallback)

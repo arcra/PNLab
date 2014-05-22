@@ -84,7 +84,7 @@ class Transition(object):
     
     TRANSITION_REGEX = re.compile('^[A-Za-z][A-Za-z0-9_-]*$')
     
-    def __init__(self, name, transitionType = TransitionTypes.IMMEDIATE, position = Vec2(), isHorizontal = True, rate = 1.0):
+    def __init__(self, name, transitionType = TransitionTypes.IMMEDIATE, position = Vec2(), isHorizontal = False, rate = 1.0):
         
         """Transition Class' constructor
         
@@ -188,7 +188,9 @@ class PetriNet(object):
         """Removes a place from the Petri Net.
         
         Argument 'place' should be either a Place object,
-        or a string representation of a Place object [i. e. str(place_obj)]. 
+        or a string representation of a Place object [i. e. str(place_obj)].
+        
+        Returns the removed object. 
         """
         if isinstance(place, Place): 
             key = str(place)
@@ -204,6 +206,8 @@ class PetriNet(object):
         for t in p._outgoing_arcs.iterkeys():
             self.transitions[t]._incoming_arcs.pop(key, None)
             self.transitions[t]._outgoing_arcs.pop(key, None)
+        
+        return p
     
     def add_transition(self, t, overwrite = False):
         """Adds a transition from the Petri Net.
@@ -237,7 +241,9 @@ class PetriNet(object):
         """Removes a transition from the Petri Net.
         
         Argument 'transition' should be either a Transition object,
-        or a string representation of a Transition object [i. e. str(transition_obj)]. 
+        or a string representation of a Transition object [i. e. str(transition_obj)].
+        
+        Returns the removed object. 
         """
         if isinstance(transition, Transition): 
             key = str(transition)
@@ -253,6 +259,8 @@ class PetriNet(object):
         for p in t._outgoing_arcs.iterkeys():
             self.places[p]._incoming_arcs.pop(key, None)
             self.places[p]._outgoing_arcs.pop(key, None)
+        
+        return t
     
     def can_connect(self, source, target):
         """
