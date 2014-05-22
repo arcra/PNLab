@@ -92,15 +92,19 @@ class PNEditor(Tkinter.Canvas):
         self._canvas_menu.add_command(label = 'Add Stochastic Transition', command = self._create_stochastic_transition)
         
         self._place_menu = Tkinter.Menu(self, tearoff = 0)
-        self._place_menu.add_command(label = 'Remove Place')
         self._place_menu.add_command(label = 'Rename Place')
         self._place_menu.add_command(label = 'Set Initial Marking')
+        self._place_menu.add_separator()
+        self._place_menu.add_command(label = 'Remove Place', command = self._remove_place)
+        self._place_menu.add_separator()
         self._place_menu.add_command(label = 'Connect to...')
         
         self._transition_menu = Tkinter.Menu(self, tearoff = 0)
-        self._transition_menu.add_command(label = 'Switch orientation', command = self._switch_orientation)
-        self._transition_menu.add_command(label = 'Remove Transition')
         self._transition_menu.add_command(label = 'Rename Transition')
+        self._transition_menu.add_command(label = 'Switch orientation', command = self._switch_orientation)
+        self._transition_menu.add_separator()
+        self._transition_menu.add_command(label = 'Remove Transition', command = self._remove_transition)
+        self._transition_menu.add_separator()
         self._transition_menu.add_command(label = 'Connect to...')
         
         
@@ -167,6 +171,20 @@ class PNEditor(Tkinter.Canvas):
         if self._petri_net.add_place(p, overwrite):
             self._draw_place(p)
     
+    def remove_place(self, p):
+        """Removes the place from the Petri Net.
+        
+        p should be either a Place object, or
+        a string representation of a place [i. e. str(place_object)]
+        """
+        
+        p = self._petri_net.remove_place(p)
+        
+        self.delete('place_' + str(p))
+        self.delete('source_' + str(p))
+        self.delete('target_' + str(p))
+        
+    
     def add_transition(self, t, overwrite = False):
         """Adds a transition to the Petri Net and draws it.
         
@@ -177,6 +195,19 @@ class PNEditor(Tkinter.Canvas):
         
         if self._petri_net.add_transition(t, overwrite):
             self._draw_transition(t)
+    
+    def remove_transition(self, t):
+        """Removes the transition from the Petri Net.
+        
+        t should be either a Transition object, or
+        a string representation of a transition [i. e. str(transition_object)]
+        """
+        
+        t = self._petri_net.remove_transition(t)
+        
+        self.delete('transition_' + str(t))
+        self.delete('source_' + str(t))
+        self.delete('target_' + str(t))
     
     def add_arc(self, source, target, weight = 1):
         self._petri_net.add_arc(source, target, weight)
@@ -344,6 +375,33 @@ class PNEditor(Tkinter.Canvas):
                        )
         
         return place_id
+    
+    def _remove_place(self):
+        tags = self.gettags(self._last_clicked)
+        
+        if 'place' not in tags:
+            return
+        
+        for t in tags:
+            if t[:6] == 'place_':
+                name = t[6:]
+                break
+        
+        self.remove_place(name)
+    
+    def _remove_transition(self):
+        tags = self.gettags(self._last_clicked)
+        
+        if 'transition' not in tags:
+            return
+        
+        for t in tags:
+            if t[:11] == 'transition_':
+                name = t[11:]
+                break
+        
+        self.remove_transition(name)
+        
     
     def _create_action_place(self):
         
