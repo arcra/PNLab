@@ -485,9 +485,6 @@ class PNEditor(Tkinter.Canvas):
             src_point = transition_point
             trgt_point = place_point
         
-        arrow_vec = src_point - trgt_point
-        
-        p0, p1 = self._get_arrow_points(trgt_point, arrow_vec)
         tags = ('arc', 'source_' + str(source), 'target_' + str(target))
         
         self.create_line(src_point.x,
@@ -495,23 +492,9 @@ class PNEditor(Tkinter.Canvas):
                          trgt_point.x,
                          trgt_point.y,
                          tags = tags,
-                         width = PNEditor.LINE_WIDTH
-                         )
-        
-        self.create_line(trgt_point.x,
-                         trgt_point.y,
-                         p0.x,
-                         p0.y,
-                         tags = tags,
-                         width = PNEditor.LINE_WIDTH
-                         )
-        
-        self.create_line(trgt_point.x,
-                         trgt_point.y,
-                         p1.x,
-                         p1.y,
-                         tags = tags,
-                         width = PNEditor.LINE_WIDTH
+                         width = PNEditor.LINE_WIDTH,
+                         arrow= Tkinter.LAST,
+                         arrowshape = (10,12,5)
                          )
         
         
@@ -548,19 +531,6 @@ class PNEditor(Tkinter.Canvas):
         y = half_height
         x = y/m #x0 = y0 = b0 = 0 
         return t.position + Vec2(x, y)
-    
-    def _get_arrow_points(self, p, vec):
-        
-        base_vec = vec.unit*PNEditor.ARROW_SIZE #*self._current_scale
-        #From the 2D rotation matrix:
-        sin_ang = math.sin(PNEditor.ARROW_ANGLE*math.pi/180)
-        cos_ang = math.cos(PNEditor.ARROW_ANGLE*math.pi/180)
-        rotated_vec = Vec2(base_vec.x*cos_ang - base_vec.y*sin_ang, sin_ang*base_vec.x + cos_ang*base_vec.y)  
-        p0 = p + rotated_vec
-        rotated_vec = Vec2(base_vec.x*cos_ang + base_vec.y*sin_ang, -sin_ang*base_vec.x + cos_ang*base_vec.y)
-        p1 = p + rotated_vec
-        
-        return (p0, p1)
     
     def _popup_canvas_menu(self, event):
         self._last_point = Vec2(event.x, event.y)
