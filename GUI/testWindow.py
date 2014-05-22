@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 @author: Adrián Revuelta Cuauhtli
-'''
+"""
 
 import Tkinter
 

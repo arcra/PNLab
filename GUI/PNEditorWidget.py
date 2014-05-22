@@ -1,16 +1,22 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 @author: Adrián Revuelta Cuauhtli
-'''
+"""
 
 import re
-import math
 import Tkinter
 import tkMessageBox
 
 from PetriNets import Place, PlaceTypes, Vec2, Transition, TransitionTypes, PetriNet
 
 class PNEditor(Tkinter.Canvas):
+    
+    """
+    Tk widget for editing Petri Net diagrams.
+    
+    Subclass of the Tkinter.Canvas Widget class. Handles several GUI interactions
+    and provides some basic API methods to edit the Petri Net without the GUI events.
+    """
     
     GRID_SIZE = 100
     GRID_SIZE_FACTOR = 3
@@ -41,6 +47,18 @@ class PNEditor(Tkinter.Canvas):
     TASK_PLACE_REGEX = re.compile('^t\.[A-Za-z][A-Za-z0-9_-]*$')
     
     def __init__(self, parent, *args, **kwargs):
+        """
+        PNEditor Class' constructor.
+        
+        Besides the usual Canvas parameters, it should receive at least either
+        a Petri Net object or a name for the new Petri Net to be created.
+        
+        Keyword Arguments:
+        PetriNet -- Petri Net object to load for viewing/editing.
+        name -- In case no Petri Net object is specified, a name must be
+                specified for the new Petri Net to be created.
+        grid -- (Default True) Boolean that specifies whether to draw a square grid.
+        """
         
         if not 'bg' in kwargs:
             kwargs['bg'] = 'white'
@@ -111,14 +129,36 @@ class PNEditor(Tkinter.Canvas):
         return self._petri_net
     
     def set_petri_net(self, newPN):
+        """Loads a new Petri Net object to be viewed/edited."""
+        
+        '''
+        #TODO (Possibly):
+        Check PetriNet saved attribute, before changing the Petri Net
+        or destroying the widget.
+        '''
+        
         self._petri_net = newPN
         self._draw_petri_net()
     
     def add_place(self, p, overwrite = False):
+        """Adds a place to the Petri Net and draws it.
+        
+        Note that it uses the PetriNet Class' instance method
+        for adding the place and so it will remove any arc information
+        it contains for the sake of maintaining consistency. 
+        """
+        
         if self._petri_net.add_place(p, overwrite):
             self._draw_place(p)
     
     def add_transition(self, t, overwrite = False):
+        """Adds a transition to the Petri Net and draws it.
+        
+        Note that it uses the PetriNet Class' instance method
+        for adding the transition and so it will remove any arc information
+        it contains for the sake of maintaining consistency.
+        """
+        
         if self._petri_net.add_transition(t, overwrite):
             self._draw_transition(transition = t)
     
@@ -463,7 +503,7 @@ class PNEditor(Tkinter.Canvas):
         return item
     
     def _draw_arc(self, source, target, weight = 1):
-        if not self._petri_net.is_arc(source, target):
+        if not self._petri_net.can_connect(source, target):
             print 'Arcs should go either from a place to a transition or vice versa and they should exist in the PN.'
         
         if isinstance(source, Place):
