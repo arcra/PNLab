@@ -9,11 +9,11 @@ class Vec2(object):
         super(Vec2, self).__init__()
         
         if isinstance(x, Vec2):
-            self.x = x.x
-            self.y = x.y
+            self.x = round(x.x, 8)
+            self.y = round(x.y, 8)
         else:
-            self.x = x
-            self.y = y
+            self.x = round(x, 8)
+            self.y = round(y, 8)
     
     def __add__(self, other):
         return Vec2(self.x + other.x, self.y + other.y)

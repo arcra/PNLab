@@ -205,13 +205,13 @@ class PNEditor(Tkinter.Canvas):
         width = int(conf['width'][4])
         height = int(conf['height'][4])
         
-        startx = self._grid_offset.x - int(self._current_grid_size * self._current_scale)
+        startx = int(self._grid_offset.x - self._current_grid_size * self._current_scale)
         step = int(self._current_grid_size * self._current_scale / PNEditor.GRID_SIZE_FACTOR)
         
         for x in xrange(startx, width, step):
             self.create_line(x, 0, x, height, fill = '#BBBBFF', tags='grid')
         
-        starty = self._grid_offset.y - int(self._current_grid_size * self._current_scale)
+        starty = int(self._grid_offset.y - self._current_grid_size * self._current_scale)
         for y in xrange(starty, height, step):
             self.create_line(0, y, width, y, fill = '#BBBBFF', tags='grid')
         
@@ -228,14 +228,14 @@ class PNEditor(Tkinter.Canvas):
     def _adjust_grid_offset(self):
         currentGridSize = int(self._current_grid_size * self._current_scale)
         while self._grid_offset.x < 0:
-            self._grid_offset.x = self._grid_offset.x + currentGridSize
+            self._grid_offset.x += currentGridSize
         while self._grid_offset.x > currentGridSize:
-            self._grid_offset.x = self._grid_offset.x - currentGridSize
+            self._grid_offset.x -= currentGridSize
             
         while self._grid_offset.y < 0:
-            self._grid_offset.y = self._grid_offset.y + currentGridSize
+            self._grid_offset.y += currentGridSize
         while self._grid_offset.y > currentGridSize:
-            self._grid_offset.y = self._grid_offset.y - currentGridSize
+            self._grid_offset.y -= currentGridSize
     
     def _draw_all_arcs(self):
         
@@ -530,7 +530,7 @@ class PNEditor(Tkinter.Canvas):
         if vec.y < 0:
             half_height = -half_height
         
-        #vector is vertical => m is undefined
+        #vector is vertical => m is infinity
         if vec.x == 0:
             return Vec2(t.position.x, t.position.y + half_height)
         
