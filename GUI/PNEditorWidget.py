@@ -314,6 +314,7 @@ class PNEditor(Tkinter.Canvas):
         #type_specific code:
         self._config_action_place(item)
         p = Place('P' + '%02d' % self._place_count, PlaceTypes.ACTION, self._last_point)
+        self.addtag_withtag('place_' + str(p), item)
         regex = PNEditor.ACTION_PLACE_REGEX
         
         self._set_label_entry(item, regex, p)
@@ -325,6 +326,7 @@ class PNEditor(Tkinter.Canvas):
         #type_specific code:
         self._config_predicate_place(item)
         p = Place('P' + '%02d' % self._place_count, PlaceTypes.PREDICATE, self._last_point)
+        self.addtag_withtag('place_' + str(p), item)
         regex = PNEditor.PREDICATE_PLACE_REGEX
         
         self._set_label_entry(item, regex, p)
@@ -336,6 +338,7 @@ class PNEditor(Tkinter.Canvas):
         #type_specific code:
         self._config_task_place(item)
         p = Place('P' + '%02d' % self._place_count, PlaceTypes.TASK, self._last_point)
+        self.addtag_withtag('place_' + str(p), item)
         regex = PNEditor.TASK_PLACE_REGEX
         
         self._set_label_entry(item, regex, p)
