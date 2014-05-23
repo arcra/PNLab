@@ -32,25 +32,25 @@ class PNEditor(Tkinter.Canvas):
     _PLACE_CONFIG = {PlaceTypes.ACTION: {
                                    'prefix' : 'a',
                                    'fill': '#00EE00',
-                                   'outline': '#00AA00',
+                                   #'outline': '#00AA00',
                                    'regex': re.compile('^a\.[A-Za-z][A-Za-z0-9_-]*$')
                                    },
                      PlaceTypes.PREDICATE: {
                                       'prefix' : 'p',
                                        'fill': '#0000EE',
-                                       'outline': '#0000AA',
+                                       #'outline': '#0000AA',
                                        'regex': re.compile('^p\.[A-Za-z][A-Za-z0-9_-]*$')
                                       },
                      PlaceTypes.TASK: {
                                       'prefix' : 't',
                                        'fill': '#EEEE00',
-                                       'outline': '#AAAA00',
+                                       #'outline': '#AAAA00',
                                        'regex': re.compile('^t\.[A-Za-z][A-Za-z0-9_-]*$')
                                       },
                      PlaceTypes.GENERIC: {
                                       'prefix' : 'g',
                                        'fill': 'white',
-                                       'outline': '#777777'
+                                       #'outline': '#777777'
                                       }
                }
     
@@ -59,27 +59,15 @@ class PNEditor(Tkinter.Canvas):
     _TRANSITION_HORIZONTAL_LABEL_PADDING = _TRANSITION_HALF_SMALL + 10
     _TRANSITION_VERTICAL_LABEL_PADDING = _TRANSITION_HALF_LARGE + 10
     
-    '''
-    _IMMEDIATE_TRANSITION_FILL = 
-    _IMMEDIATE_TRANSITION_OUTLINE = 
-    _IMMEDIATE_TRANSITION_REGEX = 
-    
-    _STOCHASTIC_TRANSITION_FILL = 
-    _STOCHASTIC_TRANSITION_OUTLINE = 
-    _STOCHASTIC_TRANSITION_REGEX = 
-    '''
-    
     _TRANSITION_CONFIG = {
                           TransitionTypes.IMMEDIATE: {
-                                   'prefix' : 'i',
-                                   'fill': '#888888',
-                                   'outline': '#888888',
+                                   'fill': '#444444',
+                                   'outline': '#444444',
                                    'regex': re.compile('^i\.[A-Za-z][A-Za-z0-9_-]*$')
                                    },
                           TransitionTypes.TIMED_STOCHASTIC: {
-                                   'prefix' : 'i',
                                    'fill': '#FFFFFF',
-                                   'outline': '#888888',
+                                   'outline': '#444444',
                                    'regex': re.compile('^s\.[A-Za-z][A-Za-z0-9_-]*$')
                                    }
                           }
@@ -102,6 +90,7 @@ class PNEditor(Tkinter.Canvas):
             kwargs['bg'] = 'white'
             
         self._grid = kwargs.pop('grid', True)
+        self._label_transitions = kwargs.pop('label_transitions', False)
         self._petri_net = kwargs.pop('PetriNet', None)
         petri_net_name = kwargs.pop('name', None)
         
@@ -127,7 +116,7 @@ class PNEditor(Tkinter.Canvas):
         self._place_menu.add_separator()
         self._place_menu.add_command(label = 'Remove Place', command = self._remove_place)
         self._place_menu.add_separator()
-        self._place_menu.add_command(label = 'Connect to...')
+        self._place_menu.add_command(label = 'Connect to...', command = self._connect_place_to)
         
         self._transition_menu = Tkinter.Menu(self, tearoff = 0)
         self._transition_menu.add_command(label = 'Rename Transition', command = self._rename_transition)
@@ -135,8 +124,10 @@ class PNEditor(Tkinter.Canvas):
         self._transition_menu.add_separator()
         self._transition_menu.add_command(label = 'Remove Transition', command = self._remove_transition)
         self._transition_menu.add_separator()
-        self._transition_menu.add_command(label = 'Connect to...')
+        self._transition_menu.add_command(label = 'Connect to...', command = self._connect_transition_to)
         
+        self._arc_menu = Tkinter.Menu(self, tearoff = 0)
+        self._arc_menu.add_command(label = 'Remove arc', command = self._remove_arc)
         
         self._place_count = 0
         self._transition_count = 0
@@ -147,6 +138,7 @@ class PNEditor(Tkinter.Canvas):
         self._anchor_set = False
         
         self._popped_up_menu = None
+        self._state = 'normal'
         
         self._current_grid_size = PNEditor._GRID_SIZE
         
@@ -155,7 +147,7 @@ class PNEditor(Tkinter.Canvas):
         ################################
         #        EVENT BINDINGs
         ################################
-        self.bind('<Button-1>', self._set_anchor)
+        self.bind('<Button-1>', self._left_click)
         self.bind('<B1-Motion>', self._dragCallback)
         self.bind('<ButtonRelease-1>', self._change_cursor_back)
         self.bind('<KeyPress-c>', self._center_diagram)
@@ -252,6 +244,11 @@ class PNEditor(Tkinter.Canvas):
     def add_arc(self, source, target, weight = 1):
         self._petri_net.add_arc(source, target, weight)
         self._draw_arc(source, target, weight)
+    
+    def remove_arc(self, source, target):
+        
+        self._petri_net.remove_arc(source, target)
+        self.delete('source_' + str(source) + '&&' + 'target_' + str(target))
     
     def _draw_petri_net(self, increase_count = True):
         self._current_scale = self._petri_net.scale
@@ -381,11 +378,14 @@ class PNEditor(Tkinter.Canvas):
         while self._grid_offset.y > currentGridSize:
             self._grid_offset.y -= currentGridSize
     
-    def _get_clicked_place_name(self):
-        tags = self.gettags(self._last_clicked)
+    def _get_place_name(self, item = None):
+        if not item:
+            item = self._last_clicked_id
+        
+        tags = self.gettags(item)
         
         if 'place' not in tags:
-            raise Exception('No place clicked!')
+            return None
         
         for t in tags:
             if t[:6] == 'place_':
@@ -393,11 +393,14 @@ class PNEditor(Tkinter.Canvas):
         
         raise Exception('Place name not found!')
     
-    def _get_clicked_transition_name(self):
-        tags = self.gettags(self._last_clicked)
+    def _get_transition_name(self, item = None):
+        if not item:
+            item = self._last_clicked_id
+        
+        tags = self.gettags(item)
         
         if 'transition' not in tags:
-            raise Exception('No transition clicked!')
+            return None
         
         for t in tags:
             if t[:11] == 'transition_':
@@ -438,7 +441,7 @@ class PNEditor(Tkinter.Canvas):
     
     def _draw_place(self, p):
         
-        place_id = self._draw_generic_place(place = p)
+        place_id = self._draw_place_item(place = p)
         self._draw_marking(place_id, p)
         self.create_text(p.position.x,
                        p.position.y + PNEditor._PLACE_LABEL_PADDING*self._current_scale,
@@ -448,31 +451,64 @@ class PNEditor(Tkinter.Canvas):
         return place_id
     
     def _draw_transition(self, t):
-        trans_id = self._draw_generic_transition(transition = t)
+        trans_id = self._draw_transition_item(transition = t)
         
         if t.isHorizontal:
             padding = PNEditor._TRANSITION_HORIZONTAL_LABEL_PADDING
         else:
             padding = PNEditor._TRANSITION_VERTICAL_LABEL_PADDING
         
-        self.create_text(t.position.x,
-                       t.position.y + padding*self._current_scale,
-                       tags = ('label', 'transition_' + str(t)) + self.gettags(trans_id),
-                       text = str(t) )
+        if self._label_transitions:
+            self.create_text(t.position.x,
+                           t.position.y + padding*self._current_scale,
+                           tags = ('label', 'transition_' + str(t)) + self.gettags(trans_id),
+                           text = str(t) )
         
         return trans_id
     
     def _remove_place(self):
-        name = self._get_clicked_place_name()
+        self._hide_menu()
+        name = self._get_place_name()
         self.remove_place(name)
     
     def _remove_transition(self):
-        name = self._get_clicked_transition_name()
+        self._hide_menu()
+        name = self._get_transition_name()
         self.remove_transition(name)
+    
+    def _remove_arc(self):
+        self._hide_menu()
+        
+        tags = self.gettags(self._last_clicked_id)
+        
+        if 'arc' not in tags:
+            return None
+        
+        source_name = ''
+        target_name = ''
+        
+        for t in tags:
+            if t[:7] == 'source_':
+                source_name = t[7:]
+            elif t[:7] == 'target_':
+                target_name = t[7:]
+        
+        if not source_name or not target_name:
+            raise Exception('No source and target specified!')
+        
+        if source_name in self._petri_net.places:
+            source = self._petri_net.places[source_name]
+            target = self._petri_net.transitions[target_name]
+        else:
+            source = self._petri_net.transitions[source_name]
+            target = self._petri_net.places[target_name]
+        
+        self.remove_arc(source, target)
     
     def _switch_orientation(self):
         
-        name = self._get_clicked_transition_name()
+        self._hide_menu()
+        name = self._get_transition_name()
         
         t = self._petri_net.transitions[name]
         t.isHorizontal = not t.isHorizontal
@@ -485,9 +521,10 @@ class PNEditor(Tkinter.Canvas):
         self._draw_item_arcs(t)
         
     def _set_initial_marking(self):
-        name = self._get_clicked_place_name()
+        self._hide_menu()
+        name = self._get_place_name()
         p = self._petri_net.places[name]
-        self._set_marking_entry(self._last_clicked, p)
+        self._set_marking_entry(self._last_clicked_id, p)
         
     def _set_marking_entry(self, canvas_id, p):
         
@@ -584,64 +621,153 @@ class PNEditor(Tkinter.Canvas):
                          fill = fill )
     
     def _rename_place(self):
-        name = self._get_clicked_place_name()
+        self._hide_menu()
+        name = self._get_place_name()
         old_p = self.remove_place(name)
         
-        item = self._draw_generic_place(old_p.position, old_p.type, False)
+        item = self._draw_place_item(old_p.position, old_p.type, False)
         p = Place('p' + '%02d' % self._place_count, old_p.type, old_p.position)
         regex = PNEditor._PLACE_CONFIG[old_p.type]['regex']
         
         self._set_rename_entry(item, regex, p, old_p)
         
     def _rename_transition(self):
-        name = self._get_clicked_transition_name()
+        self._hide_menu()
+        name = self._get_transition_name()
         old_t = self.remove_transition(name)
         
-        item = self._draw_generic_transition(old_t.position, old_t.type, False)
+        item = self._draw_transition_item(old_t.position, old_t.type, False)
         t = Transition('t' + '%02d' % self._transition_count, old_t.type, old_t.position)
         regex = PNEditor._TRANSITION_CONFIG[old_t.type]['regex']
         
         self._set_rename_entry(item, regex, t, old_t)
     
+    def _connect_place_to(self):
+        
+        self._hide_menu()
+        self._state = 'connecting_place'
+        self.itemconfig('place', state = Tkinter.DISABLED)
+        self.itemconfig('transition&&!label', outline = '#FFFF00', width = 5)
+        self.bind('<Motion>', self._connecting_place)
+        name = self._get_place_name()
+        self._source = self._petri_net.places[name]
+        
+    def _connecting_place(self, event):
+        
+        #ids = self.find_closest(event.x, event.y, 3)
+        item = self.find_withtag('current')
+        
+        self.delete('connecting')
+        
+        if item and 'transition' in self.gettags(item):
+            name = self._get_transition_name(item)
+            target = self._petri_net.transitions[name]
+            place_vec = target.position - self._source.position
+            trans_vec = -place_vec
+            place_point = self._source.position + place_vec.unit*PNEditor._PLACE_RADIUS*self._current_scale
+            transition_point = self._find_intersection(target, trans_vec)
+            self.create_line(place_point.x,
+                         place_point.y,
+                         transition_point.x,
+                         transition_point.y,
+                         tags = ('connecting',),
+                         width = PNEditor._LINE_WIDTH,
+                         arrow= Tkinter.LAST,
+                         arrowshape = (10,12,5) )
+        else:
+            target_pos = Vec2(event.x, event.y)
+            place_vec = target_pos - self._source.position
+            place_point = self._source.position + place_vec.unit*PNEditor._PLACE_RADIUS*self._current_scale
+            self.create_line(place_point.x,
+                         place_point.y,
+                         target_pos.x,
+                         target_pos.y,
+                         tags = ('connecting',),
+                         width = PNEditor._LINE_WIDTH,
+                         arrow= Tkinter.LAST,
+                         arrowshape = (10,12,5) )
+    
+    def _connect_transition_to(self):
+        
+        self._hide_menu()
+        self._state = 'connecting_transition'
+        self.itemconfig('transition', state = Tkinter.DISABLED)
+        self.itemconfig('place&&!label', outline = '#FFFF00', width = 5)
+        self.bind('<Motion>', self._connecting_transition)
+        name = self._get_transition_name()
+        self._source = self._petri_net.transitions[name]
+        
+    def _connecting_transition(self, event):
+        
+        #ids = self.find_closest(event.x, event.y, 3)
+        item = self.find_withtag('current')
+        
+        self.delete('connecting')
+        
+        if item and 'place' in self.gettags(item):
+            name = self._get_place_name(item)
+            target = self._petri_net.places[name]
+            place_vec = self._source.position - target.position
+            trans_vec = -place_vec
+            target_point = target.position + place_vec.unit*PNEditor._PLACE_RADIUS*self._current_scale
+        else:
+            target_point = Vec2(event.x, event.y)
+            trans_vec = target_point - self._source.position
+        
+        transition_point = self._find_intersection(self._source, trans_vec)
+        self.create_line(transition_point.x,
+                     transition_point.y,
+                     target_point.x,
+                     target_point.y,
+                     tags = ('connecting',),
+                     width = PNEditor._LINE_WIDTH,
+                     arrow= Tkinter.LAST,
+                     arrowshape = (10,12,5) )
+    
     def _create_action_place(self):
         
+        self._hide_menu()
         placeType = PlaceTypes.ACTION
         self._create_place(placeType)
     
     def _create_predicate_place(self):
         
+        self._hide_menu()
         placeType = PlaceTypes.PREDICATE
         self._create_place(placeType)
     
     def _create_task_place(self):
         
+        self._hide_menu()
         placeType = PlaceTypes.TASK
         self._create_place(placeType)
         
     def _create_place(self, placeType):
         
-        item = self._draw_generic_place(self._last_point, placeType)
+        item = self._draw_place_item(self._last_point, placeType)
         p = Place('p' + '%02d' % self._place_count, placeType, self._last_point)
         regex = PNEditor._PLACE_CONFIG[placeType]['regex']
         self._set_label_entry(item, regex, p)
     
     def _create_immediate_transition(self):
         
+        self._hide_menu()
         transitionType = TransitionTypes.IMMEDIATE
-        self._create_transition(self, transitionType)
+        self._create_transition(transitionType)
     
     def _create_stochastic_transition(self):
         
+        self._hide_menu()
         transitionType = TransitionTypes.TIMED_STOCHASTIC
-        self._create_transition(self, transitionType)
+        self._create_transition(transitionType)
     
     def _create_transition(self, transitionType):
-        item = self._draw_generic_transition(self._last_point, transitionType)
+        item = self._draw_transition_item(self._last_point, transitionType)
         t = Transition('t' + '%02d' % self._transition_count, transitionType, self._last_point)
         regex = PNEditor._TRANSITION_CONFIG[transitionType]['regex']
         self._set_label_entry(item, regex, t)
     
-    def _draw_generic_place(self, point = None, placeType = PlaceTypes.GENERIC, increase_place_count = True, place = None):
+    def _draw_place_item(self, point = None, placeType = PlaceTypes.GENERIC, increase_place_count = True, place = None):
         self._hide_menu()
         place_tag = ''
         if place:
@@ -659,14 +785,16 @@ class PNEditor(Tkinter.Canvas):
                          tags = ('place', placeType, place_tag),
                          width = PNEditor._LINE_WIDTH,
                          fill = PNEditor._PLACE_CONFIG[placeType]['fill'],
-                         outline = PNEditor._PLACE_CONFIG[placeType]['outline'])
+                         #outline = PNEditor._PLACE_CONFIG[placeType]['outline'],
+                         disabledfill = '#888888',
+                         disabledoutline = '#888888' )
         self.addtag_withtag('p_' + str(item), item)
         self.scale(item, point.x, point.y, self._current_scale, self._current_scale)
         if increase_place_count:
             self._place_count += 1
         return item
     
-    def _draw_generic_transition(self, point = None, transitionType = TransitionTypes.IMMEDIATE, increase_transition_count = True, transition = None):
+    def _draw_transition_item(self, point = None, transitionType = TransitionTypes.IMMEDIATE, increase_transition_count = True, transition = None):
         self._hide_menu()
         
         transition_tag = ''
@@ -692,7 +820,9 @@ class PNEditor(Tkinter.Canvas):
                          tags = ('transition', transitionType, transition_tag),
                          width = PNEditor._LINE_WIDTH,
                          fill = PNEditor._TRANSITION_CONFIG[transitionType]['fill'],
-                         outline = PNEditor._TRANSITION_CONFIG[transitionType]['outline'] )
+                         outline = PNEditor._TRANSITION_CONFIG[transitionType]['outline'],
+                         disabledfill = '#888888',
+                         disabledoutline = '#888888' )
         
         self.addtag_withtag('t_' + str(item), item)
         self.scale(item, point.x, point.y, self._current_scale, self._current_scale)
@@ -768,10 +898,11 @@ class PNEditor(Tkinter.Canvas):
                     return
                 self.addtag_withtag('transition_' + str(newObj), canvas_id)
             tags = ('label',) + self.gettags(canvas_id)
-            self.create_text(newObj.position.x,
-                             newObj.position.y + label_padding*self._current_scale,
-                             text = str(newObj),
-                             tags=tags )
+            if isPlace or self._label_transitions:
+                self.create_text(newObj.position.x,
+                                 newObj.position.y + label_padding*self._current_scale,
+                                 text = str(newObj),
+                                 tags=tags )
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
@@ -857,10 +988,11 @@ class PNEditor(Tkinter.Canvas):
                 self.add_arc(source, target)    
             
             tags = ('label',) + self.gettags(canvas_id)
-            self.create_text(newObj.position.x,
-                             newObj.position.y + label_padding*self._current_scale,
-                             text = str(newObj),
-                             tags=tags )
+            if isPlace or self._label_transitions:
+                self.create_text(newObj.position.x,
+                                 newObj.position.y + label_padding*self._current_scale,
+                                 text = str(newObj),
+                                 tags=tags )
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
@@ -935,19 +1067,24 @@ class PNEditor(Tkinter.Canvas):
     
     def _popup_menu(self, event):
         
+        if self._state != 'normal':
+            return
+        
         #current seems to be buggy
         #ids = self.find_withtag('current')
         ids = self.find_closest(event.x, event.y, 3)
         
         self._last_point = Vec2(event.x, event.y)
         self._popped_up_menu = self._canvas_menu
-        if len(ids) > 0:
+        if ids:
             tags = self.gettags(ids[0])
-            self._last_clicked = ids[0]
+            self._last_clicked_id = ids[0]
             if 'place' in tags:
                 self._popped_up_menu = self._place_menu
             elif 'transition' in tags:
                 self._popped_up_menu = self._transition_menu
+            elif 'arc' in tags:
+                self._popped_up_menu = self._arc_menu
         
         self._popped_up_menu.post(event.x_root, event.y_root)
     
@@ -996,13 +1133,47 @@ class PNEditor(Tkinter.Canvas):
         else:
             self._scale_down(event)
     
-    def _set_anchor(self, event):
+    def _left_click(self, event):
         
         self.focus_set()
         
         if self._hide_menu():
             return
         
+        if self._state == 'normal':
+            self._set_anchor(event)
+            return
+        
+        if self._state == 'connecting_place':
+            self._state = 'normal'
+            self.itemconfig('place', state = Tkinter.NORMAL)
+            self.itemconfig('transition&&!label', outline = '#000000', width = 1)
+            ids = self.find_closest(event.x, event.y, 3)
+            self.unbind('<Motion>')
+            self.delete('connecting')
+        
+            if ids and 'transition' in self.gettags(ids[0]):
+                name = self._get_transition_name(ids[0])
+                target = self._petri_net.transitions[name]
+                self.add_arc(self._source, target)
+            return
+        
+        if self._state == 'connecting_transition':
+            self._state = 'normal'
+            self.itemconfig('transition', state = Tkinter.NORMAL)
+            self.itemconfig('place&&!label', outline = '#000000', width = 1)
+            ids = self.find_closest(event.x, event.y, 3)
+            self.unbind('<Motion>')
+            self.delete('connecting')
+        
+            if ids and 'place' in self.gettags(ids[0]):
+                name = self._get_place_name(ids[0])
+                target = self._petri_net.places[name]
+                self.add_arc(self._source, target)
+            return
+        
+    
+    def _set_anchor(self, event):
         self._anchor_tag = 'all';
         currentTags = self.gettags('current')
         if 'place' in currentTags:
