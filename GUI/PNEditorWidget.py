@@ -557,13 +557,13 @@ class PNEditor(Tkinter.Canvas):
     
     def _draw_marking(self, canvas_id, p):
         
-        tag = 'mark_' + str(p)
+        tag = 'token_' + str(p)
         
         self.delete(tag)
         
         if p.init_marking == 0:
             return
-        tags = ('marking', tag) + self.gettags(canvas_id)
+        tags = ('token', tag) + self.gettags(canvas_id)
         if p.init_marking == 1:
             self.create_oval(p.position.x - PNEditor._TOKEN_RADIUS,
                              p.position.y - PNEditor._TOKEN_RADIUS,
@@ -692,7 +692,7 @@ class PNEditor(Tkinter.Canvas):
         self._hide_menu()
         self._state = 'connecting_transition'
         self.itemconfig('transition', state = Tkinter.DISABLED)
-        self.itemconfig('place&&!label', outline = '#FFFF00', width = 5)
+        self.itemconfig('place&&!label&&!token', outline = '#FFFF00', width = 5)
         self.bind('<Motion>', self._connecting_transition)
         name = self._get_transition_name()
         self._source = self._petri_net.transitions[name]
@@ -1161,7 +1161,7 @@ class PNEditor(Tkinter.Canvas):
         if self._state == 'connecting_transition':
             self._state = 'normal'
             self.itemconfig('transition', state = Tkinter.NORMAL)
-            self.itemconfig('place&&!label', outline = '#000000', width = 1)
+            self.itemconfig('place&&!label&&!token', outline = '#000000', width = 1)
             ids = self.find_closest(event.x, event.y, 3)
             self.unbind('<Motion>')
             self.delete('connecting')
