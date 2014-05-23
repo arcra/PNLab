@@ -518,6 +518,7 @@ class PNEditor(Tkinter.Canvas):
         self.delete('transition_' + name)
         
         self._draw_transition(t)
+        self._transition_count -= 1
         self._draw_item_arcs(t)
         
     def _set_initial_marking(self):
