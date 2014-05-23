@@ -18,41 +18,70 @@ class PNEditor(Tkinter.Canvas):
     and provides some basic API methods to edit the Petri Net without the GUI events.
     """
     
-    GRID_SIZE = 100
-    GRID_SIZE_FACTOR = 3
-    LINE_WIDTH = 2.0
-    ARROW_SIZE = 13
-    ARROW_ANGLE = 40
+    _GRID_SIZE = 100
+    _GRID_SIZE_FACTOR = 3
+    _LINE_WIDTH = 2.0
     
-    GENERIC_COLOR = '#777777'
+    _MARKING_REGEX = re.compile('^[0-9][1-9]*$')
+    _TOKEN_RADIUS = 3
     
-    PLACE_RADIUS = 25
-    PLACE_LABEL_PADDING = PLACE_RADIUS + 10
+    _PLACE_RADIUS = 25
+    _PLACE_LABEL_PADDING = _PLACE_RADIUS + 10
     
-    ACTION_PLACE_FILL = '#00CC00'
-    ACTION_PLACE_OUTLINE = '#008800'
-    ACTION_PLACE_REGEX = re.compile('^a\.[A-Za-z][A-Za-z0-9_-]*$')
+    _PLACE_CONFIG = {PlaceTypes.ACTION: {
+                                   'prefix' : 'a',
+                                   'fill': '#00CC00',
+                                   'outline': '#008800',
+                                   'regex': re.compile('^a\.[A-Za-z][A-Za-z0-9_-]*$')
+                                   },
+                     PlaceTypes.PREDICATE: {
+                                      'prefix' : 'p',
+                                       'fill': '#0000CC',
+                                       'outline': '#000088',
+                                       'regex': re.compile('^p\.[A-Za-z][A-Za-z0-9_-]*$')
+                                      },
+                     PlaceTypes.TASK: {
+                                      'prefix' : 't',
+                                       'fill': '#CCCC00',
+                                       'outline': '#888800',
+                                       'regex': re.compile('^t\.[A-Za-z][A-Za-z0-9_-]*$')
+                                      },
+                     PlaceTypes.GENERIC: {
+                                      'prefix' : 'g',
+                                       'fill': 'white',
+                                       'outline': '#777777'
+                                      }
+               }
     
-    PREDICATE_PLACE_FILL = '#0000CC'
-    PREDICATE_PLACE_OUTLINE = '#000088'
-    PREDICATE_PLACE_REGEX = re.compile('^p\.[A-Za-z][A-Za-z0-9_-]*$')
+    _TRANSITION_HALF_LARGE = 40
+    _TRANSITION_HALF_SMALL = 7.5
+    _TRANSITION_HORIZONTAL_LABEL_PADDING = _TRANSITION_HALF_SMALL + 10
+    _TRANSITION_VERTICAL_LABEL_PADDING = _TRANSITION_HALF_LARGE + 10
     
-    TASK_PLACE_FILL = '#CCCC00'
-    TASK_PLACE_OUTLINE = '#888800'
-    TASK_PLACE_REGEX = re.compile('^t\.[A-Za-z][A-Za-z0-9_-]*$')
+    '''
+    _IMMEDIATE_TRANSITION_FILL = 
+    _IMMEDIATE_TRANSITION_OUTLINE = 
+    _IMMEDIATE_TRANSITION_REGEX = 
     
-    TRANSITION_HALF_LARGE = 40
-    TRANSITION_HALF_SMALL = 7.5
-    TRANSITION_HORIZONTAL_LABEL_PADDING = TRANSITION_HALF_SMALL + 10
-    TRANSITION_VERTICAL_LABEL_PADDING = TRANSITION_HALF_LARGE + 10
+    _STOCHASTIC_TRANSITION_FILL = 
+    _STOCHASTIC_TRANSITION_OUTLINE = 
+    _STOCHASTIC_TRANSITION_REGEX = 
+    '''
     
-    IMMEDIATE_TRANSITION_FILL = '#888888'
-    IMMEDIATE_TRANSITION_OUTLINE = '#888888'
-    IMMEDIATE_TRANSITION_REGEX = re.compile('^i\.[A-Za-z][A-Za-z0-9_-]*$')
-    
-    STOCHASTIC_TRANSITION_FILL = '#FFFFFF'
-    STOCHASTIC_TRANSITION_OUTLINE = '#888888'
-    STOCHASTIC_TRANSITION_REGEX = re.compile('^s\.[A-Za-z][A-Za-z0-9_-]*$')
+    _TRANSITION_CONFIG = {
+                          TransitionTypes.IMMEDIATE: {
+                                   'prefix' : 'i',
+                                   'fill': '#888888',
+                                   'outline': '#888888',
+                                   'regex': re.compile('^i\.[A-Za-z][A-Za-z0-9_-]*$')
+                                   },
+                          TransitionTypes.TIMED_STOCHASTIC: {
+                                   'prefix' : 'i',
+                                   'fill': '#FFFFFF',
+                                   'outline': '#888888',
+                                   'regex': re.compile('^s\.[A-Za-z][A-Za-z0-9_-]*$')
+                                   }
+                          }
     
     def __init__(self, parent, *args, **kwargs):
         """
@@ -92,8 +121,8 @@ class PNEditor(Tkinter.Canvas):
         self._canvas_menu.add_command(label = 'Add Stochastic Transition', command = self._create_stochastic_transition)
         
         self._place_menu = Tkinter.Menu(self, tearoff = 0)
-        self._place_menu.add_command(label = 'Rename Place')
-        self._place_menu.add_command(label = 'Set Initial Marking')
+        self._place_menu.add_command(label = 'Rename Place', command = self._rename_place)
+        self._place_menu.add_command(label = 'Set Initial Marking', command = self._set_initial_marking)
         self._place_menu.add_separator()
         self._place_menu.add_command(label = 'Remove Place', command = self._remove_place)
         self._place_menu.add_separator()
@@ -118,7 +147,7 @@ class PNEditor(Tkinter.Canvas):
         
         self._popped_up_menu = None
         
-        self._current_grid_size = PNEditor.GRID_SIZE
+        self._current_grid_size = PNEditor._GRID_SIZE
         
         self._draw_petri_net()
         
@@ -230,12 +259,12 @@ class PNEditor(Tkinter.Canvas):
         self._draw_all_arcs()
     
     def _center_diagram(self, event):
-        minx = 100000
-        maxx = -100000
-        miny = 100000
-        maxy = -100000
+        minx = 1000000000
+        maxx = -1000000000
+        miny = 1000000000
+        maxy = -1000000000
         
-        padding = PNEditor.TRANSITION_HALF_LARGE * 2 * self._current_scale
+        padding = PNEditor._TRANSITION_HALF_LARGE * 2 * self._current_scale
         
         for p in self._petri_net.places.itervalues():
             if p.position.x - padding < minx:
@@ -259,14 +288,20 @@ class PNEditor(Tkinter.Canvas):
         
         w = maxx - minx
         h = maxy - miny
-        offset = -Vec2(minx, miny)
         canvas_width = int(self.config()['width'][4])
         canvas_height = int(self.config()['height'][4])
         
-        if w > h:
-            scale_factor = canvas_width/w
+        #canvas might not be squared:
+        w_ratio = canvas_width/w
+        h_ratio = canvas_height/h
+        if w_ratio < h_ratio:
+            #scale horizontally, center vertically
+            scale_factor = w_ratio
+            offset = Vec2(-minx, -miny + (canvas_height - h*w_ratio)/2)
         else:
-            scale_factor = canvas_height/h
+            #scale vertically, center horizontally
+            scale_factor = h_ratio
+            offset = Vec2(-minx + (canvas_width - w*h_ratio)/2, -miny)
         
         for p in self._petri_net.places.itervalues():
             p.position = (p.position + offset)*scale_factor
@@ -286,18 +321,18 @@ class PNEditor(Tkinter.Canvas):
         if not self._grid:
             return
         
-        if self._current_grid_size * self._current_scale <= PNEditor.GRID_SIZE / PNEditor.GRID_SIZE_FACTOR:
-            self._current_grid_size = self._current_grid_size * PNEditor.GRID_SIZE_FACTOR
+        if self._current_grid_size * self._current_scale <= PNEditor._GRID_SIZE / PNEditor._GRID_SIZE_FACTOR:
+            self._current_grid_size = self._current_grid_size * PNEditor._GRID_SIZE_FACTOR
         
-        if self._current_grid_size / PNEditor.GRID_SIZE_FACTOR * self._current_scale >= PNEditor.GRID_SIZE:
-            self._current_grid_size = int(self._current_grid_size / PNEditor.GRID_SIZE_FACTOR)
+        if self._current_grid_size / PNEditor._GRID_SIZE_FACTOR * self._current_scale >= PNEditor._GRID_SIZE:
+            self._current_grid_size = int(self._current_grid_size / PNEditor._GRID_SIZE_FACTOR)
         
         conf = self.config()
         width = int(conf['width'][4])
         height = int(conf['height'][4])
         
         startx = int(self._grid_offset.x - self._current_grid_size * self._current_scale)
-        step = int(self._current_grid_size * self._current_scale / PNEditor.GRID_SIZE_FACTOR)
+        step = int(self._current_grid_size * self._current_scale / PNEditor._GRID_SIZE_FACTOR)
         
         for x in xrange(startx, width, step):
             self.create_line(x, 0, x, height, fill = '#BBBBFF', tags='grid')
@@ -306,7 +341,7 @@ class PNEditor(Tkinter.Canvas):
         for y in xrange(starty, height, step):
             self.create_line(0, y, width, y, fill = '#BBBBFF', tags='grid')
         
-        step *= PNEditor.GRID_SIZE_FACTOR
+        step *= PNEditor._GRID_SIZE_FACTOR
         
         for x in xrange(startx, width, step):
             self.create_line(x, 0, x, height, fill = '#7777FF', width = 1.4, tags='grid')
@@ -360,16 +395,11 @@ class PNEditor(Tkinter.Canvas):
             self._draw_arc(source, target)
     
     def _draw_place(self, p):
-        place_id = self._draw_generic_place(place = p)
-        if p.type == PlaceTypes.ACTION:
-            self._config_action_place(place_id)
-        elif p.type == PlaceTypes.PREDICATE:
-            self._config_predicate_place(place_id)
-        elif p.type == PlaceTypes.TASK:
-            self._config_task_place(place_id)
         
+        place_id = self._draw_generic_place(place = p)
+        self._draw_marking(place_id, p)
         self.create_text(p.position.x,
-                       p.position.y + PNEditor.PLACE_LABEL_PADDING*self._current_scale,
+                       p.position.y + PNEditor._PLACE_LABEL_PADDING*self._current_scale,
                        tags = ('label', 'place_' + str(p)) + self.gettags(place_id),
                        text = str(p)
                        )
@@ -389,6 +419,174 @@ class PNEditor(Tkinter.Canvas):
         
         self.remove_place(name)
     
+    def _set_initial_marking(self):
+        tags = self.gettags(self._last_clicked)
+        
+        if 'place' not in tags:
+            return
+        
+        for t in tags:
+            if t[:6] == 'place_':
+                name = t[6:]
+                break
+        
+        p = self._petri_net.places[name]
+        
+        self._set_marking_entry(self._last_clicked, p)
+        
+    def _set_marking_entry(self, canvas_id, p):
+        
+        txtbox = Tkinter.Entry(self)
+        txtbox.insert(0, str(p.init_marking))
+        txtbox.selection_range(0, Tkinter.END)
+        txtbox_id = self.create_window(p.position.x, p.position.y, height= 20, width = 20, window = txtbox)
+        txtbox.grab_set()
+        txtbox.focus_set()
+        
+        callback = self._get_marking_callback(txtbox, txtbox_id, canvas_id, p)
+        
+        txtbox.bind('<KeyPress-Return>', callback)
+    
+    def _get_marking_callback(self, txtbox, txtbox_id, canvas_id, p):
+        
+        def txtboxCallback(event):
+            txt = txtbox.get()
+            if not PNEditor._MARKING_REGEX.match(txt):
+                msg = ('Please input a positive integer number for the marking.')
+                tkMessageBox.showerror('Invalid Marking', msg)
+                return
+            p.init_marking = int(txt)
+            self._draw_marking(canvas_id, p)
+            txtbox.destroy()
+            self.delete(txtbox_id)
+            
+        return txtboxCallback
+    
+    def _draw_marking(self, canvas_id, p):
+        
+        tag = 'mark_' + str(p)
+        
+        self.delete(tag)
+        
+        if p.init_marking == 0:
+            return
+        tags = ('marking', tag) + self.gettags(canvas_id)
+        if p.init_marking == 1:
+            self.create_oval(p.position.x - PNEditor._TOKEN_RADIUS,
+                             p.position.y - PNEditor._TOKEN_RADIUS,
+                             p.position.x + PNEditor._TOKEN_RADIUS,
+                             p.position.y + PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black'
+                             )
+            self.scale(tag, p.position.x, p.position.y, self._current_scale, self._current_scale)
+            return
+        if p.init_marking == 2:
+            self.create_oval(p.position.x - 3*PNEditor._TOKEN_RADIUS,
+                             p.position.y - PNEditor._TOKEN_RADIUS,
+                             p.position.x - PNEditor._TOKEN_RADIUS,
+                             p.position.y + PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black'
+                             )
+            self.create_oval(p.position.x + PNEditor._TOKEN_RADIUS,
+                             p.position.y - PNEditor._TOKEN_RADIUS,
+                             p.position.x + 3*PNEditor._TOKEN_RADIUS,
+                             p.position.y + PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black'
+                             )
+            self.scale(tag, p.position.x, p.position.y, self._current_scale, self._current_scale)
+            return
+        if p.init_marking == 3:
+            self.create_oval(p.position.x + PNEditor._TOKEN_RADIUS,
+                             p.position.y + PNEditor._TOKEN_RADIUS,
+                             p.position.x + 3*PNEditor._TOKEN_RADIUS,
+                             p.position.y + 3*PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black'
+                             )
+            self.create_oval(p.position.x - 3*PNEditor._TOKEN_RADIUS,
+                             p.position.y + PNEditor._TOKEN_RADIUS,
+                             p.position.x - PNEditor._TOKEN_RADIUS,
+                             p.position.y + 3*PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black'
+                             )
+            self.create_oval(p.position.x - PNEditor._TOKEN_RADIUS,
+                             p.position.y - 3*PNEditor._TOKEN_RADIUS,
+                             p.position.x + PNEditor._TOKEN_RADIUS,
+                             p.position.y - PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black'
+                             )
+            self.scale(tag, p.position.x, p.position.y, self._current_scale, self._current_scale)
+            return
+        self.create_text(p.position.x, p.position.y, text = str(p.init_marking), tags=tags)
+    
+    def _rename_place(self):
+        pass
+    
+    def _create_action_place(self):
+        
+        placeType = PlaceTypes.ACTION
+        self._create_place(placeType)
+    
+    def _create_predicate_place(self):
+        
+        placeType = PlaceTypes.PREDICATE
+        self._create_place(placeType)
+    
+    def _create_task_place(self):
+        
+        placeType = PlaceTypes.TASK
+        self._create_place(placeType)
+        
+    def _create_place(self, placeType):
+        
+        item = self._draw_generic_place(self._last_point, placeType)
+        p = Place('p' + '%02d' % self._place_count, placeType, self._last_point)
+        regex = PNEditor._PLACE_CONFIG[placeType]['regex']
+        self._set_label_entry(item, regex, p)
+    
+    def _draw_generic_place(self, point = Vec2(), placeType = PlaceTypes.GENERIC, place = None):
+        self._hide_menu()
+        place_tag = ''
+        if place:
+            point = place.position
+            place_tag = 'place_' + str(place)
+            placeType = place.type
+            
+        
+        item = self.create_oval(point.x - PNEditor._PLACE_RADIUS,
+                         point.y - PNEditor._PLACE_RADIUS,
+                         point.x + PNEditor._PLACE_RADIUS,
+                         point.y + PNEditor._PLACE_RADIUS,
+                         tags = ('place', placeType, place_tag),
+                         width = PNEditor._LINE_WIDTH,
+                         fill = PNEditor._PLACE_CONFIG[placeType]['fill'],
+                         outline = PNEditor._PLACE_CONFIG[placeType]['outline'])
+        self.addtag_withtag('p_' + str(item), item)
+        self.scale(item, point.x, point.y, self._current_scale, self._current_scale)
+        self._place_count += 1
+        return item
+    
+    def _draw_transition(self, t):
+        trans_id = self._draw_generic_transition(transition = t)
+        
+        if t.isHorizontal:
+            padding = PNEditor._TRANSITION_HORIZONTAL_LABEL_PADDING
+        else:
+            padding = PNEditor._TRANSITION_VERTICAL_LABEL_PADDING
+        
+        self.create_text(t.position.x,
+                       t.position.y + padding*self._current_scale,
+                       tags = ('label', 'transition_' + str(t)) + self.gettags(trans_id),
+                       text = str(t)
+                       )
+        
+        return trans_id
+    
     def _remove_transition(self):
         tags = self.gettags(self._last_clicked)
         
@@ -401,165 +599,55 @@ class PNEditor(Tkinter.Canvas):
                 break
         
         self.remove_transition(name)
-        
     
-    def _create_action_place(self):
-        
-        item = self._draw_generic_place(self._last_point)
-        
-        #type_specific code:
-        self._config_action_place(item)
-        p = Place('p' + '%02d' % self._place_count, PlaceTypes.ACTION, self._last_point)
-        regex = PNEditor.ACTION_PLACE_REGEX
-        
-        self._set_label_entry(item, regex, p)
-    
-    def _create_predicate_place(self):
-        
-        item = self._draw_generic_place(self._last_point)
-        
-        #type_specific code:
-        self._config_predicate_place(item)
-        p = Place('p' + '%02d' % self._place_count, PlaceTypes.PREDICATE, self._last_point)
-        regex = PNEditor.PREDICATE_PLACE_REGEX
-        
-        self._set_label_entry(item, regex, p)
-    
-    def _create_task_place(self):
-        
-        item = self._draw_generic_place(self._last_point)
-        
-        #type_specific code:
-        self._config_task_place(item)
-        p = Place('p' + '%02d' % self._place_count, PlaceTypes.TASK, self._last_point)
-        regex = PNEditor.TASK_PLACE_REGEX
-        
-        self._set_label_entry(item, regex, p)
-    
-    def _draw_generic_place(self, point = Vec2(), place = None):
-        self._hide_menu()
-        place_tag = ''
-        if place:
-            point = place.position
-            place_tag = 'place_' + str(place)
-            
-        
-        item = self.create_oval(point.x - PNEditor.PLACE_RADIUS,
-                         point.y - PNEditor.PLACE_RADIUS,
-                         point.x + PNEditor.PLACE_RADIUS,
-                         point.y + PNEditor.PLACE_RADIUS,
-                         tags = ('place', place_tag),
-                         width = PNEditor.LINE_WIDTH,
-                         fill = 'white',
-                         outline = PNEditor.GENERIC_COLOR)
-        self.addtag_withtag('p_' + str(item), item)
-        self.scale(item, point.x, point.y, self._current_scale, self._current_scale)
-        self._place_count += 1
-        return item
-    
-    def _config_action_place(self, item):
-        self.itemconfig(item,
-                        fill = PNEditor.ACTION_PLACE_FILL,
-                        outline = PNEditor.ACTION_PLACE_OUTLINE)
-        self.addtag_withtag('action', item)
-    
-    def _config_predicate_place(self, item):
-        self.itemconfig(item,
-                        fill = PNEditor.PREDICATE_PLACE_FILL,
-                        outline = PNEditor.PREDICATE_PLACE_OUTLINE)
-        self.addtag_withtag('predicate', item)
-    
-    def _config_task_place(self, item):
-        self.itemconfig(item,
-                        fill = PNEditor.TASK_PLACE_FILL,
-                        outline = PNEditor.TASK_PLACE_OUTLINE)
-        self.addtag_withtag('task', item)
-    
-    def _draw_transition(self, t):
-        trans_id = self._draw_generic_transition(transition = t)
-        
-        if t.type == TransitionTypes.IMMEDIATE:
-            self._config_immediate_transition(trans_id)
-        else:
-            self._config_stochastic_transition(trans_id)
-        
-        if t.isHorizontal:
-            padding = PNEditor.TRANSITION_HORIZONTAL_LABEL_PADDING
-        else:
-            padding = PNEditor.TRANSITION_VERTICAL_LABEL_PADDING
-        
-        self.create_text(t.position.x,
-                       t.position.y + padding*self._current_scale,
-                       tags = ('label', 'transition_' + str(t)) + self.gettags(trans_id),
-                       text = str(t)
-                       )
-        
-        return trans_id
-    
-    def _draw_generic_transition(self, point = Vec2(), transition = None):
+    def _draw_generic_transition(self, point = Vec2(), transitionType = TransitionTypes.IMMEDIATE, transition = None):
         self._hide_menu()
         
         transition_tag = ''
         if transition:
             point = transition.position
             transition_tag = 'transition_' + str(transition)
+            transitionType = transition.type
         
-        x0 = point.x - PNEditor.TRANSITION_HALF_SMALL
-        y0 = point.y - PNEditor.TRANSITION_HALF_LARGE
-        x1 = point.x + PNEditor.TRANSITION_HALF_SMALL
-        y1 = point.y + PNEditor.TRANSITION_HALF_LARGE
+        x0 = point.x - PNEditor._TRANSITION_HALF_SMALL
+        y0 = point.y - PNEditor._TRANSITION_HALF_LARGE
+        x1 = point.x + PNEditor._TRANSITION_HALF_SMALL
+        y1 = point.y + PNEditor._TRANSITION_HALF_LARGE
         
         if transition and transition.isHorizontal:
-            x0 = point.x - PNEditor.TRANSITION_HALF_LARGE
-            y0 = point.y - PNEditor.TRANSITION_HALF_SMALL
-            x1 = point.x + PNEditor.TRANSITION_HALF_LARGE
-            y1 = point.y + PNEditor.TRANSITION_HALF_SMALL
+            x0 = point.x - PNEditor._TRANSITION_HALF_LARGE
+            y0 = point.y - PNEditor._TRANSITION_HALF_SMALL
+            x1 = point.x + PNEditor._TRANSITION_HALF_LARGE
+            y1 = point.y + PNEditor._TRANSITION_HALF_SMALL
         
         item = self.create_rectangle(x0, y0, x1, y1,
-                         tags = ('transition', transition_tag),
-                         width = PNEditor.LINE_WIDTH,
-                         fill = 'white',
-                         outline = PNEditor.GENERIC_COLOR)
+                         tags = ('transition', transitionType, transition_tag),
+                         width = PNEditor._LINE_WIDTH,
+                         fill = PNEditor._TRANSITION_CONFIG[transitionType]['fill'],
+                         outline = PNEditor._TRANSITION_CONFIG[transitionType]['outline']
+                         )
         
         self.addtag_withtag('t_' + str(item), item)
         self.scale(item, point.x, point.y, self._current_scale, self._current_scale)
         self._transition_count += 1
         return item
     
-    def _config_immediate_transition(self, item):
-        self.itemconfig(item,
-                        fill = PNEditor.IMMEDIATE_TRANSITION_FILL,
-                        outline = PNEditor.IMMEDIATE_TRANSITION_OUTLINE)
-        self.addtag_withtag('immediate', item)
-    
-    def _config_stochastic_transition(self, item):
-        self.itemconfig(item,
-                        fill = PNEditor.STOCHASTIC_TRANSITION_FILL,
-                        outline = PNEditor.STOCHASTIC_TRANSITION_OUTLINE)
-        self.addtag_withtag('stochastic', item)
-    
     def _create_immediate_transition(self):
         
-        item = self._draw_generic_transition(self._last_point)
-        
-        #type_specific code:
-        self._config_immediate_transition(item)
-        t = Transition('t' + '%02d' % self._transition_count, TransitionTypes.IMMEDIATE, self._last_point)
-        regex = PNEditor.IMMEDIATE_TRANSITION_REGEX
-        
-        self._set_label_entry(item, regex, t)
+        transitionType = TransitionTypes.IMMEDIATE
+        self._create_transition(self, transitionType)
     
     def _create_stochastic_transition(self):
         
-        item = self._draw_generic_transition(self._last_point)
-        
-        #type_specific code:
-        self._config_stochastic_transition(item)
-        t = Transition('t' + '%02d' % self._transition_count, TransitionTypes.TIMED_STOCHASTIC, self._last_point)
-        regex = PNEditor.STOCHASTIC_TRANSITION_REGEX
-        
-        self._set_label_entry(item, regex, t)
+        transitionType = TransitionTypes.TIMED_STOCHASTIC
+        self._create_transition(self, transitionType)
     
+    def _create_transition(self, transitionType):
+        item = self._draw_generic_transition(self._last_point, transitionType)
+        t = Transition('t' + '%02d' % self._transition_count, transitionType, self._last_point)
+        regex = PNEditor._TRANSITION_CONFIG[transitionType]['regex']
+        self._set_label_entry(item, regex, t)
+        
     def _switch_orientation(self):
         
         tags = self.gettags(self._last_clicked)
@@ -589,25 +677,25 @@ class PNEditor(Tkinter.Canvas):
         
         txtbox = Tkinter.Entry(self)
         txtbox.insert(0, str(obj))
-        
+        txtbox.selection_range(2, Tkinter.END)
         #extra padding because entry position refers to the center, not the corner
         if isinstance(obj, Place):
-            label_padding = PNEditor.PLACE_LABEL_PADDING + 10
+            label_padding = PNEditor._PLACE_LABEL_PADDING + 10
         else:
             if obj.isHorizontal:
-                label_padding = PNEditor.TRANSITION_HORIZONTAL_LABEL_PADDING + 10
+                label_padding = PNEditor._TRANSITION_HORIZONTAL_LABEL_PADDING + 10
             else:
-                label_padding = PNEditor.TRANSITION_VERTICAL_LABEL_PADDING + 10
+                label_padding = PNEditor._TRANSITION_VERTICAL_LABEL_PADDING + 10
         
-        self.create_window(obj.position.x, obj.position.y + label_padding*self._current_scale, height= 20, width = 60, window = txtbox)
+        txtbox_id = self.create_window(obj.position.x, obj.position.y + label_padding*self._current_scale, height= 20, width = 60, window = txtbox)
         txtbox.grab_set()
         txtbox.focus_set()
         
-        callback = self._get_txtbox_callback(txtbox, canvas_id, regex, obj, ('label',) + self.gettags(canvas_id))
+        callback = self._get_txtbox_callback(txtbox, txtbox_id, canvas_id, regex, obj)
         
         txtbox.bind('<KeyPress-Return>', callback)
     
-    def _get_txtbox_callback(self, txtbox, canvas_id, regex, obj, tags):
+    def _get_txtbox_callback(self, txtbox, txtbox_id, canvas_id, regex, obj):
         
         isPlace = isinstance(obj, Place)
         def txtboxCallback(event):
@@ -638,23 +726,28 @@ class PNEditor(Tkinter.Canvas):
                     return
             newObj = obj.__class__(txt[2:], obj.type, obj.position)
             if isPlace:
-                label_padding = PNEditor.PLACE_LABEL_PADDING
+                label_padding = PNEditor._PLACE_LABEL_PADDING
                 if not self._petri_net.add_place(newObj):
                     tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
                     return
                 self.addtag_withtag('place_' + str(newObj), canvas_id)
             else:
                 if obj.isHorizontal:
-                    label_padding = PNEditor.TRANSITION_HORIZONTAL_LABEL_PADDING
+                    label_padding = PNEditor._TRANSITION_HORIZONTAL_LABEL_PADDING
                 else:
-                    label_padding = PNEditor.TRANSITION_VERTICAL_LABEL_PADDING
+                    label_padding = PNEditor._TRANSITION_VERTICAL_LABEL_PADDING
                 if not self._petri_net.add_transition(newObj):
                     tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
                     return
                 self.addtag_withtag('transition_' + str(newObj), canvas_id)
-            
-            self.create_text(newObj.position.x, newObj.position.y + label_padding*self._current_scale, text = str(newObj), tags=tags)
+            tags = ('label', 'lbl_' + str(newObj)) + self.gettags(canvas_id)
+            self.create_text(newObj.position.x,
+                             newObj.position.y + label_padding*self._current_scale,
+                             text = str(newObj),
+                             tags=tags
+                             )
             txtbox.destroy()
+            self.delete(txtbox_id)
         return txtboxCallback
     
     def _draw_arc(self, source, target, weight = 1):
@@ -668,7 +761,7 @@ class PNEditor(Tkinter.Canvas):
         
         place_vec = t.position - p.position
         trans_vec = -place_vec
-        place_point = p.position + place_vec.unit*PNEditor.PLACE_RADIUS*self._current_scale
+        place_point = p.position + place_vec.unit*PNEditor._PLACE_RADIUS*self._current_scale
         transition_point = self._find_intersection(t, trans_vec)
         
         if isinstance(source, Place):
@@ -685,7 +778,7 @@ class PNEditor(Tkinter.Canvas):
                          trgt_point.x,
                          trgt_point.y,
                          tags = tags,
-                         width = PNEditor.LINE_WIDTH,
+                         width = PNEditor._LINE_WIDTH,
                          arrow= Tkinter.LAST,
                          arrowshape = (10,12,5)
                          )
@@ -695,11 +788,11 @@ class PNEditor(Tkinter.Canvas):
         #NOTE: vec is a vector from the transition's center
         
         if t.isHorizontal:
-            half_width = PNEditor.TRANSITION_HALF_LARGE
-            half_height = PNEditor.TRANSITION_HALF_SMALL
+            half_width = PNEditor._TRANSITION_HALF_LARGE
+            half_height = PNEditor._TRANSITION_HALF_SMALL
         else:
-            half_width = PNEditor.TRANSITION_HALF_SMALL
-            half_height = PNEditor.TRANSITION_HALF_LARGE
+            half_width = PNEditor._TRANSITION_HALF_SMALL
+            half_height = PNEditor._TRANSITION_HALF_LARGE
         
         half_width *= self._current_scale
         half_height *= self._current_scale
