@@ -3,6 +3,10 @@
 @author: Adrián Revuelta Cuauhtli
 """
 
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 import Tkinter
 
 from PetriNets import PetriNet, Place, PlaceTypes, Transition, TransitionTypes, Vec2
@@ -24,13 +28,6 @@ class testWindow(object):
         self.pn.add_arc(t, p2)
     
         self.pne = PNEditor(self.root, width=600, height=400, grid = True, PetriNet = self.pn)
-        '''
-        self.pne.add_place(p1)
-        self.pne.add_place(p2)
-        self.pne.add_transition(t)
-        self.pne.add_arc(p1, t)
-        self.pne.add_arc(t, p2)
-        '''
         
         self.pne.grid({'row': 0, 'column': 0})
     
