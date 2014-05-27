@@ -23,7 +23,7 @@ class PNEditor(Tkinter.Canvas):
     _GRID_SIZE_FACTOR = 3
     _LINE_WIDTH = 2.0
     
-    _MARKING_REGEX = re.compile('^[0-9][1-9]*$')
+    _MARKING_REGEX = re.compile('^[1-9][0-9]*$')
     _TOKEN_RADIUS = 3
     
     _PLACE_RADIUS = 25
@@ -306,23 +306,26 @@ class PNEditor(Tkinter.Canvas):
         canvas_width = int(self.config()['width'][4])
         canvas_height = int(self.config()['height'][4])
         
+        offset = Vec2(-minx, -miny)
+        
         #canvas might not be squared:
         w_ratio = canvas_width/w
         h_ratio = canvas_height/h
         if w_ratio < h_ratio:
             #scale horizontally, center vertically
             scale_factor = w_ratio
-            offset = Vec2(-minx, -miny + (canvas_height - h*w_ratio)/2)
+            center_offset = Vec2(0, (canvas_height - h*scale_factor)/2)
         else:
             #scale vertically, center horizontally
             scale_factor = h_ratio
-            offset = Vec2(-minx + (canvas_width - w*h_ratio)/2, -miny)
+            center_offset = Vec2((canvas_width - w*scale_factor)/2, 0)
         
+        # (new_pos - (0, 0))*scale_factor
         for p in self._petri_net.places.itervalues():
-            p.position = (p.position + offset)*scale_factor
+            p.position = (p.position + offset)*scale_factor + center_offset
         
         for t in self._petri_net.transitions.itervalues():
-            t.position = (t.position + offset)*scale_factor
+            t.position = (t.position + offset)*scale_factor + center_offset
         
         self._current_scale *= scale_factor
         self._petri_net.scale = self._current_scale
@@ -626,8 +629,13 @@ class PNEditor(Tkinter.Canvas):
         name = self._get_place_name()
         old_p = self.remove_place(name)
         
+        h = int(self.config()['height'][4])
+        entry_y = self._last_point.y + (PNEditor._PLACE_LABEL_PADDING + 10)*self._current_scale + 10
+        if entry_y > h:
+            old_p.position.y -= entry_y - h
+        
         item = self._draw_place_item(old_p.position, old_p.type, False)
-        p = Place('p' + '%02d' % self._place_count, old_p.type, old_p.position)
+        p = Place(old_p.name, old_p.type, old_p.position)
         regex = PNEditor._PLACE_CONFIG[old_p.type]['regex']
         
         self._set_rename_entry(item, regex, p, old_p)
@@ -637,8 +645,13 @@ class PNEditor(Tkinter.Canvas):
         name = self._get_transition_name()
         old_t = self.remove_transition(name)
         
+        h = int(self.config()['height'][4])
+        entry_y = self._last_point.y + (PNEditor._TRANSITION_HORIZONTAL_LABEL_PADDING + 10)*self._current_scale + 10
+        if entry_y > h:
+            old_t.position.y -= entry_y - h
+        
         item = self._draw_transition_item(old_t.position, old_t.type, False)
-        t = Transition('t' + '%02d' % self._transition_count, old_t.type, old_t.position)
+        t = Transition(old_t.name, old_t.type, old_t.position)
         regex = PNEditor._TRANSITION_CONFIG[old_t.type]['regex']
         
         self._set_rename_entry(item, regex, t, old_t)
@@ -745,6 +758,12 @@ class PNEditor(Tkinter.Canvas):
         
     def _create_place(self, placeType):
         
+        h = int(self.config()['height'][4])
+        #PNEditor._TRANSITION_HORIZONTAL_LABEL_PADDING + 10
+        entry_y = self._last_point.y + (PNEditor._PLACE_LABEL_PADDING + 10)*self._current_scale + 10
+        if entry_y > h:
+            self._last_point.y -= entry_y - h
+        
         item = self._draw_place_item(self._last_point, placeType)
         p = Place('p' + '%02d' % self._place_count, placeType, self._last_point)
         regex = PNEditor._PLACE_CONFIG[placeType]['regex']
@@ -763,6 +782,12 @@ class PNEditor(Tkinter.Canvas):
         self._create_transition(transitionType)
     
     def _create_transition(self, transitionType):
+        
+        h = int(self.config()['height'][4])
+        entry_y = self._last_point.y + (PNEditor._TRANSITION_HORIZONTAL_LABEL_PADDING + 10)*self._current_scale + 10
+        if entry_y > h:
+            self._last_point.y -= entry_y - h
+        
         item = self._draw_transition_item(self._last_point, transitionType)
         t = Transition('t' + '%02d' % self._transition_count, transitionType, self._last_point)
         regex = PNEditor._TRANSITION_CONFIG[transitionType]['regex']
@@ -914,6 +939,7 @@ class PNEditor(Tkinter.Canvas):
         txtbox = Tkinter.Entry(self)
         txtbox.insert(0, str(old_obj))
         txtbox.selection_range(2, Tkinter.END)
+        
         #extra padding because entry position refers to the center, not the corner
         if isinstance(obj, Place):
             label_padding = PNEditor._PLACE_LABEL_PADDING + 10
@@ -929,7 +955,10 @@ class PNEditor(Tkinter.Canvas):
         
         callback = self._get_rename_callback(txtbox, txtbox_id, canvas_id, regex, obj, old_obj)
         
+        escape_callback = self._get_cancel_callback(txtbox, txtbox_id, canvas_id, obj, old_obj)
+        
         txtbox.bind('<KeyPress-Return>', callback)
+        txtbox.bind('<KeyPress-Escape>', escape_callback)
     
     def _get_rename_callback(self, txtbox, txtbox_id, canvas_id, regex, obj, old_obj):
         
@@ -980,11 +1009,11 @@ class PNEditor(Tkinter.Canvas):
                 arcs_dict = self._petri_net.places
             
             target = newObj
-            for arc in old_obj.incoming_arcs:
+            for arc in old_obj.incoming_arcs.iterkeys():
                 source = arcs_dict[arc]
                 self.add_arc(source, target)
             source = newObj
-            for arc in old_obj.outgoing_arcs:
+            for arc in old_obj.outgoing_arcs.iterkeys():
                 target = arcs_dict[arc]
                 self.add_arc(source, target)    
             
@@ -998,6 +1027,48 @@ class PNEditor(Tkinter.Canvas):
             txtbox.destroy()
             self.delete(txtbox_id)
         return txtboxCallback
+    
+    def _get_cancel_callback(self, txtbox, txtbox_id, canvas_id, obj, old_obj):
+        
+        isPlace = isinstance(obj, Place)
+        def escape_callback(event):
+            if isPlace:
+                label_padding = PNEditor._PLACE_LABEL_PADDING
+                if not self._petri_net.add_place(obj):
+                    tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
+                    return
+                self.addtag_withtag('place_' + str(obj), canvas_id)
+                arcs_dict = self._petri_net.transitions
+            else:
+                if obj.isHorizontal:
+                    label_padding = PNEditor._TRANSITION_HORIZONTAL_LABEL_PADDING
+                else:
+                    label_padding = PNEditor._TRANSITION_VERTICAL_LABEL_PADDING
+                if not self._petri_net.add_transition(obj):
+                    tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
+                    return
+                self.addtag_withtag('transition_' + str(obj), canvas_id)
+                arcs_dict = self._petri_net.places
+            
+            target = obj
+            for arc in old_obj.incoming_arcs.iterkeys():
+                source = arcs_dict[arc]
+                self.add_arc(source, target)
+            source = obj
+            for arc in old_obj.outgoing_arcs.iterkeys():
+                target = arcs_dict[arc]
+                self.add_arc(source, target)    
+            
+            tags = ('label',) + self.gettags(canvas_id)
+            if isPlace or self._label_transitions:
+                self.create_text(obj.position.x,
+                                 obj.position.y + label_padding*self._current_scale,
+                                 text = str(obj),
+                                 tags=tags )
+            txtbox.grab_release()
+            txtbox.destroy()
+            self.delete(txtbox_id)
+        return escape_callback
     
     def _draw_arc(self, source, target, weight = 1):
         
@@ -1176,7 +1247,15 @@ class PNEditor(Tkinter.Canvas):
     
     def _set_anchor(self, event):
         self._anchor_tag = 'all';
-        currentTags = self.gettags('current')
+        
+        #current seems to be buggy
+        #currentTags = self.gettags('current')
+        ids = self.find_closest(event.x, event.y, 3)
+        if not ids:
+            print 'ERROR: Anchor could not be set.'
+            return
+        currentTags = self.gettags(ids[0])
+        
         if 'place' in currentTags:
             for t in currentTags:
                 if t[:2] == 'p_':
