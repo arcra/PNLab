@@ -28,11 +28,22 @@ class testWindow(object):
         self.pn.add_arc(t, p2)
     
         self.pne = PNEditor(self.root, width=600, height=400, grid = True, PetriNet = self.pn)
-        
+        self.pne.bind('<Motion>', self.cursor_callback)
         self.pne.grid({'row': 0, 'column': 0})
     
         self.btn = Tkinter.Button(self.root, text = 'Reload Petri Net', command = self.btnCallback)
         self.btn.grid({'row': 1, 'column': 0})
+        
+        self.status_bar = Tkinter.Frame(self.root, height = 20)
+        self.status_bar.grid(row = 2, column = 0, sticky = Tkinter.E+Tkinter.W)
+        
+        self.cursor_var = Tkinter.StringVar()
+        self.status_label = Tkinter.Label(self.status_bar, textvariable = self.cursor_var)
+        self.status_label.grid()
+        
+    
+    def cursor_callback(self, event):
+        self.cursor_var.set('(' + str(event.x) + ', ' + str(event.y) + ')')
     
     def btnCallback(self):
         self.pn = self.pne.petri_net

@@ -19,7 +19,7 @@ class PlaceTypes(object):
 class TransitionTypes(object):
     """'Enum' class for Transition types"""
     IMMEDIATE = 'immediate'
-    TIMED_STOCHASTIC = 'stochastic'
+    STOCHASTIC = 'stochastic'
 
 class Place(object):
     
@@ -28,7 +28,7 @@ class Place(object):
     PLACE_REGEX = re.compile('^[A-Za-z][A-Za-z0-9_-]*$')
     
     def __init__(self, name, placeType = PlaceTypes.GENERIC, position = Vec2(), init_marking = 0):
-        """Place Class' constructor
+        """Place constructor
         
             Sets the name, type, position and initial marking of a place.
             
@@ -57,18 +57,26 @@ class Place(object):
     
     @property
     def name(self):
+        """Read-only property. Name of the place, not including the type prefix."""
         return self._name
     
     @property
     def type(self):
+        """Read-only property. Type of place."""
         return self._type
     
     @property
     def incoming_arcs(self):
+        """Read-only property. Deepcopy of the incoming arcs as a dictionaty with
+            transition string representations as keys and weights as values. 
+        """
         return copy.deepcopy(self._incoming_arcs)
     
     @property
     def outgoing_arcs(self):
+        """Read-only property. Deepcopy of the outgoing arcs as a dictionaty with
+            transition string representations as keys and weights as values. 
+        """
         return copy.deepcopy(self._outgoing_arcs)
     
     def __str__(self):
@@ -86,7 +94,7 @@ class Transition(object):
     
     def __init__(self, name, transitionType = TransitionTypes.IMMEDIATE, position = Vec2(), isHorizontal = False, rate = 1.0):
         
-        """Transition Class' constructor
+        """Transition constructor
         
             Sets the name, type, position, orientation and rate of a transition.
             
@@ -110,6 +118,7 @@ class Transition(object):
         
         self._name = name
         self.type = transitionType
+        #For stochastic_timed transitions:
         self.rate = 0
         self.isHorizontal = isHorizontal
         self.position = Vec2(position)
@@ -118,21 +127,28 @@ class Transition(object):
     
     @property
     def name(self):
+        """Read-onlye property. Name of the transition, not including the type prefix."""
         return self._name
     
     @property
     def incoming_arcs(self):
+        """Read-only property. Deepcopy of the incoming arcs as a dictionaty with
+            place string representations as keys and weights as values. 
+        """
         return copy.deepcopy(self._incoming_arcs)
     
     @property
     def outgoing_arcs(self):
+        """Read-only property. Deepcopy of the outgoing arcs as a dictionaty with
+            place string representations as keys and weights as values. 
+        """
         return copy.deepcopy(self._outgoing_arcs)
     
     def __str__(self):
         """ String representation of a Transition object.
         
         It is formed with the first letter of the
-        transition type(i for IMMEDIATE and s for TIMED_STOCHASTIC),
+        transition type(i for IMMEDIATE and s for STOCHASTIC),
         followed by a dot and the transition name.
         """
         
