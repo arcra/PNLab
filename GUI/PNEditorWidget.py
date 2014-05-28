@@ -396,6 +396,20 @@ class PNEditor(Tkinter.Canvas):
         while self._grid_offset.y >= currentGridSize:
             self._grid_offset.y -= currentGridSize
     
+    def _get_current_item(self, event):
+        
+        halo = 10
+        item = ''
+        ids = self.find_closest(event.x, event.y, halo)
+        ids = [x for x in ids if 'grid' not in self.gettags(x)]
+        if ids:
+            item = ids[0]
+        ids = self.find_overlapping(event.x - halo, event.y - halo, event.x + halo, event.y + halo)
+        ids = [x for x in ids if 'grid' not in self.gettags(x)]
+        if ids:
+            item = ids[0]
+        return item
+    
     def _get_place_name(self, item = None):
         """Get place name of the specified canvas item or the last clicked item if None given."""
         if not item:
@@ -722,9 +736,8 @@ class PNEditor(Tkinter.Canvas):
         
     def _connecting_place(self, event):
         """Event callback to draw an arc when connecting a place."""
-        #ids = self.find_closest(event.x, event.y, 3)
-        item = self.find_withtag('current')
         
+        item = self._get_current_item(event)
         self.delete('connecting')
         
         if item and 'transition' in self.gettags(item):
@@ -767,9 +780,9 @@ class PNEditor(Tkinter.Canvas):
         
     def _connecting_transition(self, event):
         """Event callback to draw an arc when connecting a transition."""
-        #ids = self.find_closest(event.x, event.y, 3)
-        item = self.find_withtag('current')
         
+        item = self._get_current_item(event)
+            
         self.delete('connecting')
         
         if item and 'place' in self.gettags(item):
@@ -1240,15 +1253,13 @@ class PNEditor(Tkinter.Canvas):
         if self._state != 'normal':
             return
         
-        #current seems to be buggy
-        #ids = self.find_withtag('current')
-        ids = self.find_closest(event.x, event.y, 3)
+        item = self._get_current_item(event)
         
         self._last_point = Vec2(event.x, event.y)
         self._popped_up_menu = self._canvas_menu
-        if ids:
-            tags = self.gettags(ids[0])
-            self._last_clicked_id = ids[0]
+        if item:
+            tags = self.gettags(item)
+            self._last_clicked_id = item
             if 'place' in tags:
                 self._popped_up_menu = self._place_menu
             elif 'transition' in tags:
@@ -1325,12 +1336,12 @@ class PNEditor(Tkinter.Canvas):
             self._state = 'normal'
             self.itemconfig('place', state = Tkinter.NORMAL)
             self.itemconfig('transition&&!label', outline = '#000000', width = 1)
-            ids = self.find_closest(event.x, event.y, 3)
             self.unbind('<Motion>', self._connecting_place_fn_id)
             self.delete('connecting')
+            item = self._get_current_item(event)
         
-            if ids and 'transition' in self.gettags(ids[0]):
-                name = self._get_transition_name(ids[0])
+            if item and 'transition' in self.gettags(item):
+                name = self._get_transition_name(item)
                 target = self._petri_net.transitions[name]
                 self.add_arc(self._source, target)
             return
@@ -1339,12 +1350,12 @@ class PNEditor(Tkinter.Canvas):
             self._state = 'normal'
             self.itemconfig('transition', state = Tkinter.NORMAL)
             self.itemconfig('place&&!label&&!token', outline = '#000000', width = 1)
-            ids = self.find_closest(event.x, event.y, 3)
             self.unbind('<Motion>', self._connecting_transition_fn_id)
             self.delete('connecting')
+            item = self._get_current_item(event)
         
-            if ids and 'place' in self.gettags(ids[0]):
-                name = self._get_place_name(ids[0])
+            if item and 'place' in self.gettags(item):
+                name = self._get_place_name(item)
                 target = self._petri_net.places[name]
                 self.add_arc(self._source, target)
             return
@@ -1357,13 +1368,11 @@ class PNEditor(Tkinter.Canvas):
         """
         self._anchor_tag = 'all';
         
-        #current seems to be buggy
-        #currentTags = self.gettags('current')
-        ids = self.find_closest(event.x, event.y, 3)
-        if not ids:
+        item = self._get_current_item(event)
+        if not item:
             print 'ERROR: Anchor could not be set.'
             return
-        currentTags = self.gettags(ids[0])
+        currentTags = self.gettags(item)
         
         if 'place' in currentTags:
             for t in currentTags:
