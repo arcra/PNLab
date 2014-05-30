@@ -23,36 +23,32 @@ class PNEditor(Tkinter.Canvas):
     _GRID_SIZE_FACTOR = 3
     _LINE_WIDTH = 2.0
     
+    _NAME_REGEX = re.compile('^[A-Za-z][A-Za-z0-9_-]*$')
+    
     _MARKING_REGEX = re.compile('^[1-9][0-9]*$')
     _TOKEN_RADIUS = 3
     
     _PLACE_RADIUS = 25
     _PLACE_LABEL_PADDING = _PLACE_RADIUS + 10
     
+    
     _PLACE_CONFIG = {PlaceTypes.ACTION: {
-                                   'prefix' : 'a',
-                                   'fill': '#00EE00',
-                                   #'outline': '#00AA00',
-                                   'regex': re.compile('^a\.[A-Za-z][A-Za-z0-9_-]*$')
-                                   },
-                     PlaceTypes.PREDICATE: {
-                                      'prefix' : 'p',
-                                       'fill': '#0000EE',
-                                       #'outline': '#0000AA',
-                                       'regex': re.compile('^p\.[A-Za-z][A-Za-z0-9_-]*$')
-                                      },
-                     PlaceTypes.TASK: {
-                                      'prefix' : 't',
-                                       'fill': '#EEEE00',
-                                       #'outline': '#AAAA00',
-                                       'regex': re.compile('^t\.[A-Za-z][A-Za-z0-9_-]*$')
-                                      },
-                     PlaceTypes.GENERIC: {
-                                      'prefix' : 'g',
-                                       'fill': 'white',
-                                       #'outline': '#777777'
-                                      }
-               }
+                                         'fill' : '#00EE00',
+                                         'outline' : '#00AA00'
+                                         },
+                          PlaceTypes.PREDICATE: {
+                                                 'fill' : '#0000EE',
+                                                 'outline' : '#0000AA'
+                                                 },
+                          PlaceTypes.TASK: {
+                                            'fill' : '#EEEE00',
+                                            'outline' : '#AAAA00'
+                                            },
+                          PlaceTypes.GENERIC: {
+                                            'fill' : 'white',
+                                            'outline' : 'black'
+                                            }
+                          }
     
     _TRANSITION_HALF_LARGE = 40
     _TRANSITION_HALF_SMALL = 7.5
@@ -60,17 +56,15 @@ class PNEditor(Tkinter.Canvas):
     _TRANSITION_VERTICAL_LABEL_PADDING = _TRANSITION_HALF_LARGE + 10
     
     _TRANSITION_CONFIG = {
-                          TransitionTypes.IMMEDIATE: {
-                                   'fill': '#444444',
-                                   'outline': '#444444',
-                                   'regex': re.compile('^i\.[A-Za-z][A-Za-z0-9_-]*$')
-                                   },
-                          TransitionTypes.STOCHASTIC: {
-                                   'fill': '#FFFFFF',
-                                   'outline': '#444444',
-                                   'regex': re.compile('^s\.[A-Za-z][A-Za-z0-9_-]*$')
-                                   }
-                          }
+                               TransitionTypes.IMMEDIATE: {
+                                            'fill' : '#444444',
+                                            'outline' : '#444444'
+                                            },
+                               TransitionTypes.STOCHASTIC: {
+                                            'fill' : '#FFFFFF',
+                                            'outline' : '#444444'
+                                            }
+                               }
     
     def __init__(self, parent, *args, **kwargs):
         """
@@ -98,6 +92,8 @@ class PNEditor(Tkinter.Canvas):
             raise Exception('Either a PetriNet object or a name must be passed to the Petri Net Editor.')
         
         if not self._petri_net:
+            if not PNEditor._NAME_REGEX.match(petri_net_name):
+                raise Exception('The PetriNet name should start with an alphabetic character and can be followed by amy number of alphanumeric characters, dashes or underscores.')
             self._petri_net = PetriNet(petri_net_name)
         
         Tkinter.Canvas.__init__(self, *args, **kwargs)
@@ -420,9 +416,9 @@ class PNEditor(Tkinter.Canvas):
         if 'place' not in tags:
             return None
         
-        for t in tags:
-            if t[:6] == 'place_':
-                return t[6:]
+        for tag in tags:
+            if tag[:6] == 'place_':
+                return tag[6:]
         
         raise Exception('Place name not found!')
     
@@ -436,9 +432,9 @@ class PNEditor(Tkinter.Canvas):
         if 'transition' not in tags:
             return None
         
-        for t in tags:
-            if t[:11] == 'transition_':
-                return t[11:]
+        for tag in tags:
+            if tag[:11] == 'transition_':
+                return tag[11:]
         
         raise Exception('Transition name not found!')
     
@@ -525,11 +521,11 @@ class PNEditor(Tkinter.Canvas):
         source_name = ''
         target_name = ''
         
-        for t in tags:
-            if t[:7] == 'source_':
-                source_name = t[7:]
-            elif t[:7] == 'target_':
-                target_name = t[7:]
+        for tag in tags:
+            if tag[:7] == 'source_':
+                source_name = tag[7:]
+            elif tag[:7] == 'target_':
+                target_name = tag[7:]
         
         if not source_name or not target_name:
             raise Exception('No source and target specified!')
@@ -687,9 +683,8 @@ class PNEditor(Tkinter.Canvas):
         
         item = self._draw_place_item(old_p.position, old_p.type, False)
         p = Place(old_p.name, old_p.type, old_p.position)
-        regex = PNEditor._PLACE_CONFIG[old_p.type]['regex']
         
-        self._set_rename_entry(item, regex, p, old_p)
+        self._set_rename_entry(item, p, old_p)
         
     def _rename_transition(self):
         """Menu callback to rename clicked transition.
@@ -720,9 +715,8 @@ class PNEditor(Tkinter.Canvas):
         
         item = self._draw_transition_item(old_t.position, old_t.type, False)
         t = Transition(old_t.name, old_t.type, old_t.position)
-        regex = PNEditor._TRANSITION_CONFIG[old_t.type]['regex']
         
-        self._set_rename_entry(item, regex, t, old_t)
+        self._set_rename_entry(item, t, old_t)
     
     def _connect_place_to(self):
         """Menu callback to connect clicked place to a transition."""
@@ -845,8 +839,7 @@ class PNEditor(Tkinter.Canvas):
         
         item = self._draw_place_item(self._last_point, placeType)
         p = Place('p' + '%02d' % self._place_count, placeType, self._last_point)
-        regex = PNEditor._PLACE_CONFIG[placeType]['regex']
-        self._set_label_entry(item, regex, p)
+        self._set_label_entry(item, p)
     
     def _create_immediate_transition(self):
         """Menu callback to create an IMMEDIATE transition."""
@@ -881,8 +874,7 @@ class PNEditor(Tkinter.Canvas):
         
         item = self._draw_transition_item(self._last_point, transitionType)
         t = Transition('t' + '%02d' % self._transition_count, transitionType, self._last_point)
-        regex = PNEditor._TRANSITION_CONFIG[transitionType]['regex']
-        self._set_label_entry(item, regex, t)
+        self._set_label_entry(item, t)
     
     def _draw_place_item(self, point = None, placeType = PlaceTypes.GENERIC, increase_place_count = True, place = None):
         """Draws a place item, with the attributes corresponding to the place type.
@@ -906,7 +898,7 @@ class PNEditor(Tkinter.Canvas):
                          tags = ('place', placeType, place_tag),
                          width = PNEditor._LINE_WIDTH,
                          fill = PNEditor._PLACE_CONFIG[placeType]['fill'],
-                         #outline = PNEditor._PLACE_CONFIG[placeType]['outline'],
+                         outline = PNEditor._PLACE_CONFIG[placeType]['outline'],
                          disabledfill = '#888888',
                          disabledoutline = '#888888' )
         self.addtag_withtag('p_' + str(item), item)
@@ -955,7 +947,7 @@ class PNEditor(Tkinter.Canvas):
             self._transition_count += 1
         return item
     
-    def _set_label_entry(self, canvas_id, regex, obj):
+    def _set_label_entry(self, canvas_id, obj):
         """Sets the Entry Widget used to set the name of a new element.
             
             Calls the label callback factory function to bind the callback 
@@ -977,16 +969,16 @@ class PNEditor(Tkinter.Canvas):
         txtbox.grab_set()
         txtbox.focus_set()
         
-        callback = self._get_txtbox_callback(txtbox, txtbox_id, canvas_id, regex, obj)
+        callback = self._get_txtbox_callback(txtbox, txtbox_id, canvas_id, obj)
         
         txtbox.bind('<KeyPress-Return>', callback)
     
-    def _get_txtbox_callback(self, txtbox, txtbox_id, canvas_id, regex, obj):
+    def _get_txtbox_callback(self, txtbox, txtbox_id, canvas_id, obj):
         """Callback factory function for the <KeyPress-Return> event of the label entry widget."""
         isPlace = isinstance(obj, Place)
         def txtboxCallback(event):
             txt = txtbox.get()
-            if not regex.match(txt):
+            if not (txt[:2] == obj.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
                 if isPlace:
                     msg = ('A place name must begin with the first letter of its type and a dot, ' +
                     'followed by an alphabetic character and then any number of ' +
@@ -1037,7 +1029,7 @@ class PNEditor(Tkinter.Canvas):
             self.delete(txtbox_id)
         return txtboxCallback
     
-    def _set_rename_entry(self, canvas_id, regex, obj, old_obj):
+    def _set_rename_entry(self, canvas_id, obj, old_obj):
         """Sets the Entry Widget used to set the new name of an element.
             
             Calls the callback factory functions to bind the callbacks 
@@ -1060,19 +1052,19 @@ class PNEditor(Tkinter.Canvas):
         txtbox.grab_set()
         txtbox.focus_set()
         
-        callback = self._get_rename_callback(txtbox, txtbox_id, canvas_id, regex, obj, old_obj)
+        callback = self._get_rename_callback(txtbox, txtbox_id, canvas_id, obj, old_obj)
         
         escape_callback = self._get_cancel_callback(txtbox, txtbox_id, canvas_id, obj, old_obj)
         
         txtbox.bind('<KeyPress-Return>', callback)
         txtbox.bind('<KeyPress-Escape>', escape_callback)
     
-    def _get_rename_callback(self, txtbox, txtbox_id, canvas_id, regex, obj, old_obj):
+    def _get_rename_callback(self, txtbox, txtbox_id, canvas_id, obj, old_obj):
         """Callback factory function for the <KeyPress-Return> event of the rename entry widget."""
         isPlace = isinstance(obj, Place)
         def txtboxCallback(event):
             txt = txtbox.get()
-            if not regex.match(txt):
+            if not (txt[:2] == obj.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
                 if isPlace:
                     msg = ('A place name must begin with the first letter of its type and a dot, ' +
                     'followed by an alphabetic character and then any number of ' +
@@ -1335,7 +1327,8 @@ class PNEditor(Tkinter.Canvas):
         if self._state == 'connecting_place':
             self._state = 'normal'
             self.itemconfig('place', state = Tkinter.NORMAL)
-            self.itemconfig('transition&&!label', outline = '#000000', width = 1)
+            self.itemconfig('transition&&' + TransitionTypes.IMMEDIATE + '&&!label', outline = PNEditor._TRANSITION_CONFIG[TransitionTypes.IMMEDIATE]['outline'], width = 1)
+            self.itemconfig('transition&&' + TransitionTypes.STOCHASTIC + '&&!label', outline = PNEditor._TRANSITION_CONFIG[TransitionTypes.STOCHASTIC]['outline'], width = 1)
             self.unbind('<Motion>', self._connecting_place_fn_id)
             self.delete('connecting')
             item = self._get_current_item(event)
@@ -1349,7 +1342,10 @@ class PNEditor(Tkinter.Canvas):
         if self._state == 'connecting_transition':
             self._state = 'normal'
             self.itemconfig('transition', state = Tkinter.NORMAL)
-            self.itemconfig('place&&!label&&!token', outline = '#000000', width = 1)
+            self.itemconfig('place&&' + PlaceTypes.ACTION + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.ACTION]['outline'], width = 1)
+            self.itemconfig('place&&' + PlaceTypes.PREDICATE + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.PREDICATE]['outline'], width = 1)
+            self.itemconfig('place&&' + PlaceTypes.TASK + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.TASK]['outline'], width = 1)
+            self.itemconfig('place&&' + PlaceTypes.GENERIC + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.GENERIC]['outline'], width = 1)
             self.unbind('<Motion>', self._connecting_transition_fn_id)
             self.delete('connecting')
             item = self._get_current_item(event)
@@ -1367,11 +1363,15 @@ class PNEditor(Tkinter.Canvas):
             the work area.
         """
         self._anchor_tag = 'all';
+        self._last_point = Vec2(event.x, event.y)
+        self._anchor_set = True
+        self.config(cursor = 'fleur')
         
         item = self._get_current_item(event)
+        
         if not item:
-            print 'ERROR: Anchor could not be set.'
             return
+            
         currentTags = self.gettags(item)
         
         if 'place' in currentTags:
@@ -1384,9 +1384,7 @@ class PNEditor(Tkinter.Canvas):
                 if t[:2] == 't_':
                     self._anchor_tag = t
                     break
-        self._last_point = Vec2(event.x, event.y)
-        self._anchor_set = True
-        self.config(cursor = 'fleur')
+        
     
     def _dragCallback(self, event):
         """<B1-Motion> callback for moving an element or panning the work area."""
@@ -1424,7 +1422,7 @@ class PNEditor(Tkinter.Canvas):
                 self._grid_offset = (self._grid_offset + dif).int
                 self._draw_grid()
                 
-        self._set_anchor(event)
+        self._last_point = Vec2(event.x, event.y)
         
         
     def _change_cursor_back(self, event):
