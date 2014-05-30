@@ -1327,8 +1327,8 @@ class PNEditor(Tkinter.Canvas):
         if self._state == 'connecting_place':
             self._state = 'normal'
             self.itemconfig('place', state = Tkinter.NORMAL)
-            self.itemconfig('transition&&' + TransitionTypes.IMMEDIATE + '&&!label', outline = PNEditor._TRANSITION_CONFIG[TransitionTypes.IMMEDIATE]['outline'], width = 1)
-            self.itemconfig('transition&&' + TransitionTypes.STOCHASTIC + '&&!label', outline = PNEditor._TRANSITION_CONFIG[TransitionTypes.STOCHASTIC]['outline'], width = 1)
+            self.itemconfig('transition&&' + TransitionTypes.IMMEDIATE + '&&!label', outline = PNEditor._TRANSITION_CONFIG[TransitionTypes.IMMEDIATE]['outline'], width = PNEditor._LINE_WIDTH)
+            self.itemconfig('transition&&' + TransitionTypes.STOCHASTIC + '&&!label', outline = PNEditor._TRANSITION_CONFIG[TransitionTypes.STOCHASTIC]['outline'], width = PNEditor._LINE_WIDTH)
             self.unbind('<Motion>', self._connecting_place_fn_id)
             self.delete('connecting')
             item = self._get_current_item(event)
@@ -1342,10 +1342,10 @@ class PNEditor(Tkinter.Canvas):
         if self._state == 'connecting_transition':
             self._state = 'normal'
             self.itemconfig('transition', state = Tkinter.NORMAL)
-            self.itemconfig('place&&' + PlaceTypes.ACTION + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.ACTION]['outline'], width = 1)
-            self.itemconfig('place&&' + PlaceTypes.PREDICATE + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.PREDICATE]['outline'], width = 1)
-            self.itemconfig('place&&' + PlaceTypes.TASK + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.TASK]['outline'], width = 1)
-            self.itemconfig('place&&' + PlaceTypes.GENERIC + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.GENERIC]['outline'], width = 1)
+            self.itemconfig('place&&' + PlaceTypes.ACTION + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.ACTION]['outline'], width = PNEditor._LINE_WIDTH)
+            self.itemconfig('place&&' + PlaceTypes.PREDICATE + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.PREDICATE]['outline'], width = PNEditor._LINE_WIDTH)
+            self.itemconfig('place&&' + PlaceTypes.TASK + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.TASK]['outline'], width = PNEditor._LINE_WIDTH)
+            self.itemconfig('place&&' + PlaceTypes.GENERIC + '&&!label&&!token', outline = PNEditor._PLACE_CONFIG[PlaceTypes.GENERIC]['outline'], width = PNEditor._LINE_WIDTH)
             self.unbind('<Motion>', self._connecting_transition_fn_id)
             self.delete('connecting')
             item = self._get_current_item(event)
