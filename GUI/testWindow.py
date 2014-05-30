@@ -8,6 +8,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import Tkinter
+import tkFileDialog
 
 from PetriNets import PetriNet, Place, PlaceTypes, Transition, TransitionTypes, Vec2
 from GUI.PNEditorWidget import PNEditor
@@ -17,6 +18,7 @@ class testWindow(object):
     def __init__(self):
         super(testWindow, self).__init__()
         self.root = Tkinter.Tk()
+        self.root.wm_title('PetriNet Lab - Test window')
         self.pn = PetriNet(name = 'test')
         p1 = Place('myAction', PlaceTypes.ACTION, Vec2(150, 250))
         t = Transition('transition1', TransitionTypes.IMMEDIATE, Vec2(250, 250))
@@ -29,10 +31,19 @@ class testWindow(object):
     
         self.pne = PNEditor(self.root, width=600, height=400, grid = True, PetriNet = self.pn)
         self.pne.bind('<Motion>', self.cursor_callback)
-        self.pne.grid({'row': 0, 'column': 0})
+        self.pne.grid(row = 0, column = 0)
+        
+        self.buttons_frame = Tkinter.Frame(self.root, height = 50)
+        self.buttons_frame.grid(row = 1, column = 0)
     
-        self.btn = Tkinter.Button(self.root, text = 'Reload Petri Net', command = self.btnCallback)
-        self.btn.grid({'row': 1, 'column': 0})
+        self.reload_btn = Tkinter.Button(self.buttons_frame, text = 'Reload Petri Net', command = self.btnCallback)
+        self.reload_btn.grid(row = 0, column = 0)
+        
+        self.open_btn = Tkinter.Button(self.buttons_frame, text = 'Open PNML file', command = self.open_PNML)
+        self.open_btn.grid(row = 0, column = 1)
+        
+        self.save_btn = Tkinter.Button(self.buttons_frame, text = 'Save PNML file', command = self.save_PNML)
+        self.save_btn.grid(row = 0, column = 2)
         
         self.status_bar = Tkinter.Frame(self.root, height = 20)
         self.status_bar.grid(row = 2, column = 0, sticky = Tkinter.E+Tkinter.W)
@@ -48,6 +59,35 @@ class testWindow(object):
     def btnCallback(self):
         self.pn = self.pne.petri_net
         self.pne.set_petri_net(self.pn)
+    
+    def open_PNML(self):
+        filename = tkFileDialog.askopenfilename(
+                                              defaultextension = '.pnml',
+                                              filetypes=[('PNML file', '*.pnml')],
+                                              title = 'Open PNML file...'
+                                              )
+        if not filename:
+            return
+        try:
+            pn = PetriNet.from_pnml_file(filename)
+            self.pne.set_petri_net(pn)
+        except Exception as e:
+            print 'Error opening PNML file.'
+            print e
+    
+    def save_PNML(self):
+        filename = tkFileDialog.asksaveasfilename(
+                                                  defaultextension = '.pnml',
+                                                  filetypes=[('PNML file', '*.pnml')],
+                                                  title = 'Save as PNML file...'
+                                                  )
+        if not filename:
+            return
+        try:
+            self.pne.petri_net.to_pnml_file(filename)
+        except Exception as e:
+            print 'Error saving PNML file.'
+            print e
     
 if __name__ == '__main__':
     w = testWindow()
