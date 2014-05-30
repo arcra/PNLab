@@ -839,7 +839,7 @@ class PNEditor(Tkinter.Canvas):
         
         item = self._draw_place_item(self._last_point, placeType)
         p = Place('p' + '%02d' % self._place_count, placeType, self._last_point)
-        self._set_label_entry(item, p)
+        self._set_create_entry(item, p)
     
     def _create_immediate_transition(self):
         """Menu callback to create an IMMEDIATE transition."""
@@ -874,7 +874,7 @@ class PNEditor(Tkinter.Canvas):
         
         item = self._draw_transition_item(self._last_point, transitionType)
         t = Transition('t' + '%02d' % self._transition_count, transitionType, self._last_point)
-        self._set_label_entry(item, t)
+        self._set_create_entry(item, t)
     
     def _draw_place_item(self, point = None, placeType = PlaceTypes.GENERIC, increase_place_count = True, place = None):
         """Draws a place item, with the attributes corresponding to the place type.
@@ -947,7 +947,7 @@ class PNEditor(Tkinter.Canvas):
             self._transition_count += 1
         return item
     
-    def _set_label_entry(self, canvas_id, obj):
+    def _set_create_entry(self, canvas_id, obj):
         """Sets the Entry Widget used to set the name of a new element.
             
             Calls the label callback factory function to bind the callback 
@@ -969,11 +969,14 @@ class PNEditor(Tkinter.Canvas):
         txtbox.grab_set()
         txtbox.focus_set()
         
-        callback = self._get_txtbox_callback(txtbox, txtbox_id, canvas_id, obj)
+        callback = self._get_create_callback(txtbox, txtbox_id, canvas_id, obj)
+        
+        escape_callback = self._get_cancel_create_callback(txtbox, txtbox_id, canvas_id, obj)
         
         txtbox.bind('<KeyPress-Return>', callback)
+        txtbox.bind('<KeyPress-Escape>', escape_callback)
     
-    def _get_txtbox_callback(self, txtbox, txtbox_id, canvas_id, obj):
+    def _get_create_callback(self, txtbox, txtbox_id, canvas_id, obj):
         """Callback factory function for the <KeyPress-Return> event of the label entry widget."""
         isPlace = isinstance(obj, Place)
         def txtboxCallback(event):
@@ -1029,6 +1032,19 @@ class PNEditor(Tkinter.Canvas):
             self.delete(txtbox_id)
         return txtboxCallback
     
+    def _get_cancel_create_callback(self, txtbox, txtbox_id, canvas_id, obj):
+        """Callback factory function for the <KeyPress-Escape> event of the create entry widget."""
+        def escape_callback(event):
+            txtbox.grab_release()
+            txtbox.destroy()
+            self.delete(txtbox_id)
+            self.delete(canvas_id)
+            if isinstance(obj, Place):
+                self._place_count -= 1
+            else:
+                self._transition_count -= 1
+        return escape_callback
+    
     def _set_rename_entry(self, canvas_id, obj, old_obj):
         """Sets the Entry Widget used to set the new name of an element.
             
@@ -1054,7 +1070,7 @@ class PNEditor(Tkinter.Canvas):
         
         callback = self._get_rename_callback(txtbox, txtbox_id, canvas_id, obj, old_obj)
         
-        escape_callback = self._get_cancel_callback(txtbox, txtbox_id, canvas_id, obj, old_obj)
+        escape_callback = self._get_cancel_rename_callback(txtbox, txtbox_id, canvas_id, obj, old_obj)
         
         txtbox.bind('<KeyPress-Return>', callback)
         txtbox.bind('<KeyPress-Escape>', escape_callback)
@@ -1127,7 +1143,7 @@ class PNEditor(Tkinter.Canvas):
             self.delete(txtbox_id)
         return txtboxCallback
     
-    def _get_cancel_callback(self, txtbox, txtbox_id, canvas_id, obj, old_obj):
+    def _get_cancel_rename_callback(self, txtbox, txtbox_id, canvas_id, obj, old_obj):
         """Callback factory function for the <KeyPress-Escape> event of the rename entry widget."""
         isPlace = isinstance(obj, Place)
         def escape_callback(event):
