@@ -645,7 +645,7 @@ class PNEditor(Tkinter.Canvas):
         item = self._draw_place_item(old_p.position, old_p.type, False)
         p = Place(old_p.name, old_p.type, old_p.position)
         
-        self._set_rename_entry(item, p, old_p)
+        self._set_rename_place_entry(item, p, old_p)
         
     def _rename_transition(self):
         """Menu callback to rename clicked transition.
@@ -677,7 +677,7 @@ class PNEditor(Tkinter.Canvas):
         item = self._draw_transition_item(old_t.position, old_t.type, False)
         t = Transition(old_t.name, old_t.type, old_t.position)
         
-        self._set_rename_entry(item, t, old_t)
+        self._set_rename_transition_entry(item, t, old_t)
     
     def _connect_place_to(self):
         """Menu callback to connect clicked place to a transition."""
@@ -800,7 +800,7 @@ class PNEditor(Tkinter.Canvas):
         
         item = self._draw_place_item(self._last_point, placeType)
         p = Place('p' + '%02d' % self._place_count, placeType, self._last_point)
-        self._set_create_entry(item, p)
+        self._set_create_place_entry(item, p)
     
     def _create_immediate_transition(self):
         """Menu callback to create an IMMEDIATE transition."""
@@ -809,9 +809,9 @@ class PNEditor(Tkinter.Canvas):
         self._create_transition(transitionType)
     
     def _create_stochastic_transition(self):
-        """Menu callback to create a STOCHASTIC transition."""
+        """Menu callback to create a TIMED_STOCHASTIC transition."""
         self._hide_menu()
-        transitionType = TransitionTypes.STOCHASTIC
+        transitionType = TransitionTypes.TIMED_STOCHASTIC
         self._create_transition(transitionType)
     
     def _create_transition(self, transitionType):
@@ -835,7 +835,7 @@ class PNEditor(Tkinter.Canvas):
         
         item = self._draw_transition_item(self._last_point, transitionType)
         t = Transition('t' + '%02d' % self._transition_count, transitionType, self._last_point)
-        self._set_create_entry(item, t)
+        self._set_create_transition_entry(item, t)
     
     def _draw_place_item(self, point = None, placeType = PlaceTypes.GENERIC, increase_place_count = True, place = None):
         """Draws a place item, with the attributes corresponding to the place type.
@@ -908,85 +908,116 @@ class PNEditor(Tkinter.Canvas):
             self._transition_count += 1
         return item
     
-    def _set_create_entry(self, canvas_id, obj):
-        """Sets the Entry Widget used to set the name of a new element.
+    def _set_create_place_entry(self, canvas_id, p):
+        """Sets the Entry Widget used to set the name of a new place.
             
             Calls the label callback factory function to bind the callback 
             to the <KeyPress-Return> event.
         """
         txtbox = Tkinter.Entry(self)
-        txtbox.insert(0, str(obj))
+        txtbox.insert(0, str(p))
         txtbox.selection_range(2, Tkinter.END)
         #extra padding because entry position refers to the center, not the corner
-        if isinstance(obj, Place):
-            label_padding = PetriNet.PLACE_LABEL_PADDING + 10
-        else:
-            if obj.isHorizontal:
-                label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING + 10
-            else:
-                label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING + 10
+        label_padding = PetriNet.PLACE_LABEL_PADDING + 10
         
-        txtbox_id = self.create_window(obj.position.x, obj.position.y + label_padding*self._current_scale, height= 20, width = 85, window = txtbox)
+        txtbox_id = self.create_window(p.position.x, p.position.y + label_padding*self._current_scale, height= 20, width = 85, window = txtbox)
         txtbox.grab_set()
         txtbox.focus_set()
         
-        callback = self._get_create_callback(txtbox, txtbox_id, canvas_id, obj)
+        callback = self._get_create_place_callback(txtbox, txtbox_id, canvas_id, p)
         
-        escape_callback = self._get_cancel_create_callback(txtbox, txtbox_id, canvas_id, obj)
+        escape_callback = self._get_cancel_create_callback(txtbox, txtbox_id, canvas_id, p)
         
         txtbox.bind('<KeyPress-Return>', callback)
         txtbox.bind('<KeyPress-Escape>', escape_callback)
     
-    def _get_create_callback(self, txtbox, txtbox_id, canvas_id, obj):
-        """Callback factory function for the <KeyPress-Return> event of the label entry widget."""
-        isPlace = isinstance(obj, Place)
+    def _set_create_transition_entry(self, canvas_id, t):
+        """Sets the Entry Widget used to set the name of a new transition.
+            
+            Calls the label callback factory function to bind the callback 
+            to the <KeyPress-Return> event.
+        """
+        txtbox = Tkinter.Entry(self)
+        txtbox.insert(0, str(t))
+        txtbox.selection_range(2, Tkinter.END)
+        #extra padding because entry position refers to the center, not the corner
+        if t.isHorizontal:
+            label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING + 10
+        else:
+            label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING + 10
+        
+        txtbox_id = self.create_window(t.position.x, t.position.y + label_padding*self._current_scale, height= 20, width = 85, window = txtbox)
+        txtbox.grab_set()
+        txtbox.focus_set()
+        
+        callback = self._get_create_transition_callback(txtbox, txtbox_id, canvas_id, t)
+        
+        escape_callback = self._get_cancel_create_callback(txtbox, txtbox_id, canvas_id, t)
+        
+        txtbox.bind('<KeyPress-Return>', callback)
+        txtbox.bind('<KeyPress-Escape>', escape_callback)
+    
+    def _get_create_place_callback(self, txtbox, txtbox_id, canvas_id, p):
+        """Callback factory function for the <KeyPress-Return> event of the 'create place' entry widget."""
         def txtboxCallback(event):
             txt = txtbox.get()
-            if not (txt[:2] == obj.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
-                if isPlace:
-                    msg = ('A place name must begin with the first letter of its type and a dot, ' +
+            if not (txt[:2] == p.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
+                msg = ('A place name must begin with the first letter of its type and a dot, ' +
                     'followed by an alphabetic character and then any number of ' +
                     'alphanumeric characters, dashes or underscores. \
                      \
                     Examples: a.my_Action, t.task1')
-                else:
-                    msg = ("A transition name must begin with an 'i' and a dot if it's an immediate transition " +
-                           "or an 's' and a dot if it's a timed_stochastic transition, " + 
-                           "followed by an alphabetic character and then any number of " +
-                           "alphanumeric characters, dashes or underscores. \
-                           \
-                           Example: i.transition1, s.t-2")
                 tkMessageBox.showerror('Invalid Name', msg)
                 return
-            if isPlace:
-                if txt in self._petri_net.places:
-                    tkMessageBox.showerror('Duplicate name', 'A place of the same type with that name already exists in the Petri Net.')
-                    return
-            else:
-                if txt in self._petri_net.transitions:
-                    tkMessageBox.showerror('Duplicate name', 'A transition with that name already exists in the Petri Net.')
-                    return
-            newObj = obj.__class__(txt[2:], obj.type, obj.position)
-            if isPlace:
-                label_padding = PetriNet.PLACE_LABEL_PADDING
-                if not self._petri_net.add_place(newObj):
-                    tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
-                    return
-                self.addtag_withtag('place_' + str(newObj), canvas_id)
-            else:
-                if obj.isHorizontal:
-                    label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING
-                else:
-                    label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING
-                if not self._petri_net.add_transition(newObj):
-                    tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
-                    return
-                self.addtag_withtag('transition_' + str(newObj), canvas_id)
+            if txt in self._petri_net.places:
+                tkMessageBox.showerror('Duplicate name', 'A place of the same type with that name already exists in the Petri Net.')
+                return
+            new_p = Place(txt[2:], p.type, p.position)
+            label_padding = PetriNet.PLACE_LABEL_PADDING
+            if not self._petri_net.add_place(new_p):
+                tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
+                return
+            self.addtag_withtag('place_' + str(new_p), canvas_id)
             tags = ('label',) + self.gettags(canvas_id)
-            if isPlace or self._label_transitions:
-                self.create_text(newObj.position.x,
-                                 newObj.position.y + label_padding*self._current_scale,
-                                 text = str(newObj),
+            self.create_text(new_p.position.x,
+                             new_p.position.y + label_padding*self._current_scale,
+                             text = str(new_p),
+                             tags=tags )
+            txtbox.grab_release()
+            txtbox.destroy()
+            self.delete(txtbox_id)
+        return txtboxCallback
+    
+    def _get_create_transition_callback(self, txtbox, txtbox_id, canvas_id, t):
+        """Callback factory function for the <KeyPress-Return> event of the 'create transition' entry widget."""
+        def txtboxCallback(event):
+            txt = txtbox.get()
+            if not (txt[:2] == t.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
+                msg = ("A transition name must begin with an 'i' and a dot if it's an immediate transition " +
+                       "or an 's' and a dot if it's a timed_stochastic transition, " + 
+                       "followed by an alphabetic character and then any number of " +
+                       "alphanumeric characters, dashes or underscores. \
+                       \
+                       Example: i.transition1, s.t-2")
+                tkMessageBox.showerror('Invalid Name', msg)
+                return
+            if txt in self._petri_net.transitions:
+                tkMessageBox.showerror('Duplicate name', 'A transition with that name already exists in the Petri Net.')
+                return
+            new_t = Transition(txt[2:], t.type, t.position)
+            if t.isHorizontal:
+                label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING
+            else:
+                label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING
+            if not self._petri_net.add_transition(new_t):
+                tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
+                return
+            self.addtag_withtag('transition_' + str(new_t), canvas_id)
+            tags = ('label',) + self.gettags(canvas_id)
+            if self._label_transitions:
+                self.create_text(new_t.position.x,
+                                 new_t.position.y + label_padding*self._current_scale,
+                                 text = str(new_t),
                                  tags=tags )
             txtbox.grab_release()
             txtbox.destroy()
@@ -994,7 +1025,7 @@ class PNEditor(Tkinter.Canvas):
         return txtboxCallback
     
     def _get_cancel_create_callback(self, txtbox, txtbox_id, canvas_id, obj):
-        """Callback factory function for the <KeyPress-Escape> event of the create entry widget."""
+        """Callback factory function for the <KeyPress-Escape> event of the 'create' entry widget."""
         def escape_callback(event):
             txtbox.grab_release()
             txtbox.destroy()
@@ -1006,140 +1037,198 @@ class PNEditor(Tkinter.Canvas):
                 self._transition_count -= 1
         return escape_callback
     
-    def _set_rename_entry(self, canvas_id, obj, old_obj):
-        """Sets the Entry Widget used to set the new name of an element.
+    def _set_rename_place_entry(self, canvas_id, p, old_p):
+        """Sets the Entry Widget used to set the new name of a place.
             
             Calls the callback factory functions to bind the callbacks 
             to the <KeyPress-Return> and <KeyPress-Escape> events.
         """
         txtbox = Tkinter.Entry(self)
-        txtbox.insert(0, str(old_obj))
+        txtbox.insert(0, str(old_p))
         txtbox.selection_range(2, Tkinter.END)
         
         #extra padding because entry position refers to the center, not the corner
-        if isinstance(obj, Place):
-            label_padding = PetriNet.PLACE_LABEL_PADDING + 10
-        else:
-            if obj.isHorizontal:
-                label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING + 10
-            else:
-                label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING + 10
+        label_padding = PetriNet.PLACE_LABEL_PADDING + 10
         
-        txtbox_id = self.create_window(obj.position.x, obj.position.y + label_padding*self._current_scale, height= 20, width = 85, window = txtbox)
+        txtbox_id = self.create_window(p.position.x, p.position.y + label_padding*self._current_scale, height= 20, width = 85, window = txtbox)
         txtbox.grab_set()
         txtbox.focus_set()
         
-        callback = self._get_rename_callback(txtbox, txtbox_id, canvas_id, obj, old_obj)
+        callback = self._get_rename_place_callback(txtbox, txtbox_id, canvas_id, p, old_p)
         
-        escape_callback = self._get_cancel_rename_callback(txtbox, txtbox_id, canvas_id, obj, old_obj)
+        escape_callback = self._get_cancel_rename_place_callback(txtbox, txtbox_id, canvas_id, p, old_p)
         
         txtbox.bind('<KeyPress-Return>', callback)
         txtbox.bind('<KeyPress-Escape>', escape_callback)
     
-    def _get_rename_callback(self, txtbox, txtbox_id, canvas_id, obj, old_obj):
-        """Callback factory function for the <KeyPress-Return> event of the rename entry widget."""
-        isPlace = isinstance(obj, Place)
+    def _set_rename_transition_entry(self, canvas_id, t, old_t):
+        """Sets the Entry Widget used to set the new name of a transition.
+            
+            Calls the callback factory functions to bind the callbacks 
+            to the <KeyPress-Return> and <KeyPress-Escape> events.
+        """
+        txtbox = Tkinter.Entry(self)
+        txtbox.insert(0, str(old_t))
+        txtbox.selection_range(2, Tkinter.END)
+        
+        #extra padding because entry position refers to the center, not the corner
+        if t.isHorizontal:
+            label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING + 10
+        else:
+            label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING + 10
+        
+        txtbox_id = self.create_window(t.position.x, t.position.y + label_padding*self._current_scale, height= 20, width = 85, window = txtbox)
+        txtbox.grab_set()
+        txtbox.focus_set()
+        
+        callback = self._get_rename_transition_callback(txtbox, txtbox_id, canvas_id, t, old_t)
+        
+        escape_callback = self._get_cancel_rename_transition_callback(txtbox, txtbox_id, canvas_id, t, old_t)
+        
+        txtbox.bind('<KeyPress-Return>', callback)
+        txtbox.bind('<KeyPress-Escape>', escape_callback)
+    
+    def _get_rename_place_callback(self, txtbox, txtbox_id, canvas_id, p, old_p):
+        """Callback factory function for the <KeyPress-Return> event of the 'rename place' entry widget."""
         def txtboxCallback(event):
             txt = txtbox.get()
-            if not (txt[:2] == obj.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
-                if isPlace:
-                    msg = ('A place name must begin with the first letter of its type and a dot, ' +
+            if not (txt[:2] == p.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
+                msg = ('A place name must begin with the first letter of its type and a dot, ' +
                     'followed by an alphabetic character and then any number of ' +
                     'alphanumeric characters, dashes or underscores. \
                      \
                     Examples: a.my_Action, t.task1')
-                else:
-                    msg = ("A transition name must begin with an 'i' and a dot if it's an immediate transition " +
-                           "or an 's' and a dot if it's a timed_stochastic transition, " + 
-                           "followed by an alphabetic character and then any number of " +
-                           "alphanumeric characters, dashes or underscores. \
-                           \
-                           Example: i.transition1, s.t-2")
                 tkMessageBox.showerror('Invalid Name', msg)
                 return
-            if isPlace:
-                if txt in self._petri_net.places:
-                    tkMessageBox.showerror('Duplicate name', 'A place of the same type with that name already exists in the Petri Net.')
-                    return
-            else:
-                if txt in self._petri_net.transitions:
-                    tkMessageBox.showerror('Duplicate name', 'A transition with that name already exists in the Petri Net.')
-                    return
-            newObj = obj.__class__(txt[2:], obj.type, obj.position)
-            if isPlace:
-                label_padding = PetriNet.PLACE_LABEL_PADDING
-                if not self._petri_net.add_place(newObj):
-                    tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
-                    return
-                self.addtag_withtag('place_' + str(newObj), canvas_id)
-                arcs_dict = self._petri_net.transitions
-            else:
-                if obj.isHorizontal:
-                    label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING
-                else:
-                    label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING
-                if not self._petri_net.add_transition(newObj):
-                    tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
-                    return
-                self.addtag_withtag('transition_' + str(newObj), canvas_id)
-                arcs_dict = self._petri_net.places
+            if txt in self._petri_net.places:
+                tkMessageBox.showerror('Duplicate name', 'A place of the same type with that name already exists in the Petri Net.')
+                return
+            new_p = Place(txt[2:], p.type, p.position)
+            label_padding = PetriNet.PLACE_LABEL_PADDING
+            if not self._petri_net.add_place(new_p):
+                tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
+                return
+            self.addtag_withtag('place_' + str(new_p), canvas_id)
             
-            target = newObj
-            for arc in old_obj.incoming_arcs.iterkeys():
-                source = arcs_dict[arc]
-                self.add_arc(source, target, old_obj.incoming_arcs[arc])
-            source = newObj
-            for arc in old_obj.outgoing_arcs.iterkeys():
-                target = arcs_dict[arc]
-                self.add_arc(source, target, old_obj.outgoing_arcs[arc])
+            target = new_p
+            for arc in old_p.incoming_arcs.iterkeys():
+                source = self._petri_net.transitions[arc]
+                self.add_arc(source, target, old_p.incoming_arcs[arc])
+            source = new_p
+            for arc in old_p.outgoing_arcs.iterkeys():
+                target = self._petri_net.transitions[arc]
+                self.add_arc(source, target, old_p.outgoing_arcs[arc])
             
             tags = ('label',) + self.gettags(canvas_id)
-            if isPlace or self._label_transitions:
-                self.create_text(newObj.position.x,
-                                 newObj.position.y + label_padding*self._current_scale,
-                                 text = str(newObj),
+            self.create_text(new_p.position.x,
+                             new_p.position.y + label_padding*self._current_scale,
+                             text = str(new_p),
+                             tags=tags )
+            txtbox.grab_release()
+            txtbox.destroy()
+            self.delete(txtbox_id)
+        return txtboxCallback
+    
+    def _get_rename_transition_callback(self, txtbox, txtbox_id, canvas_id, t, old_t):
+        """Callback factory function for the <KeyPress-Return> event of the 'rename transition' entry widget."""
+        def txtboxCallback(event):
+            txt = txtbox.get()
+            if not (txt[:2] == t.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
+                msg = ("A transition name must begin with an 'i' and a dot if it's an immediate transition " +
+                       "or an 's' and a dot if it's a timed_stochastic transition, " + 
+                       "followed by an alphabetic character and then any number of " +
+                       "alphanumeric characters, dashes or underscores. \
+                       \
+                       Example: i.transition1, s.t-2")
+                tkMessageBox.showerror('Invalid Name', msg)
+                return
+            if txt in self._petri_net.transitions:
+                tkMessageBox.showerror('Duplicate name', 'A transition with that name already exists in the Petri Net.')
+                return
+            new_t = Transition(txt[2:], t.type, t.position)
+            if t.isHorizontal:
+                label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING
+            else:
+                label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING
+            if not self._petri_net.add_transition(new_t):
+                tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
+                return
+            self.addtag_withtag('transition_' + str(new_t), canvas_id)
+            
+            target = new_t
+            for arc in old_t.incoming_arcs.iterkeys():
+                source = self._petri_net.places[arc]
+                self.add_arc(source, target, old_t.incoming_arcs[arc])
+            source = new_t
+            for arc in old_t.outgoing_arcs.iterkeys():
+                target = self._petri_net.places[arc]
+                self.add_arc(source, target, old_t.outgoing_arcs[arc])
+            
+            tags = ('label',) + self.gettags(canvas_id)
+            if self._label_transitions:
+                self.create_text(new_t.position.x,
+                                 new_t.position.y + label_padding*self._current_scale,
+                                 text = str(new_t),
                                  tags=tags )
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
         return txtboxCallback
     
-    def _get_cancel_rename_callback(self, txtbox, txtbox_id, canvas_id, obj, old_obj):
-        """Callback factory function for the <KeyPress-Escape> event of the rename entry widget."""
-        isPlace = isinstance(obj, Place)
+    def _get_cancel_rename_place_callback(self, txtbox, txtbox_id, canvas_id, p, old_p):
+        """Callback factory function for the <KeyPress-Escape> event of the 'rename place' entry widget."""
         def escape_callback(event):
-            if isPlace:
-                label_padding = PetriNet.PLACE_LABEL_PADDING
-                if not self._petri_net.add_place(obj):
-                    tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
-                    return
-                self.addtag_withtag('place_' + str(obj), canvas_id)
-                arcs_dict = self._petri_net.transitions
-            else:
-                if obj.isHorizontal:
-                    label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING
-                else:
-                    label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING
-                if not self._petri_net.add_transition(obj):
-                    tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
-                    return
-                self.addtag_withtag('transition_' + str(obj), canvas_id)
-                arcs_dict = self._petri_net.places
+            label_padding = PetriNet.PLACE_LABEL_PADDING
+            if not self._petri_net.add_place(p):
+                tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
+                return
+            self.addtag_withtag('place_' + str(p), canvas_id)
             
-            target = obj
-            for arc in old_obj.incoming_arcs.iterkeys():
-                source = arcs_dict[arc]
-                self.add_arc(source, target, old_obj.incoming_arcs[arc])
-            source = obj
-            for arc in old_obj.outgoing_arcs.iterkeys():
-                target = arcs_dict[arc]
-                self.add_arc(source, target, old_obj.outgoing_arcs[arc])
+            target = p
+            for arc in old_p.incoming_arcs.iterkeys():
+                source = self._petri_net.transitions[arc]
+                self.add_arc(source, target, old_p.incoming_arcs[arc])
+            source = p
+            for arc in old_p.outgoing_arcs.iterkeys():
+                target = self._petri_net.transitions[arc]
+                self.add_arc(source, target, old_p.outgoing_arcs[arc])
             
             tags = ('label',) + self.gettags(canvas_id)
-            if isPlace or self._label_transitions:
-                self.create_text(obj.position.x,
-                                 obj.position.y + label_padding*self._current_scale,
-                                 text = str(obj),
+            self.create_text(p.position.x,
+                             p.position.y + label_padding*self._current_scale,
+                             text = str(p),
+                             tags=tags )
+            txtbox.grab_release()
+            txtbox.destroy()
+            self.delete(txtbox_id)
+        return escape_callback
+    
+    def _get_cancel_rename_transition_callback(self, txtbox, txtbox_id, canvas_id, t, old_t):
+        """Callback factory function for the <KeyPress-Escape> event of the 'rename transition' entry widget."""
+        def escape_callback(event):
+            if t.isHorizontal:
+                label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING
+            else:
+                label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING
+            if not self._petri_net.add_transition(t):
+                tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
+                return
+            self.addtag_withtag('transition_' + str(t), canvas_id)
+            
+            target = t
+            for arc in old_t.incoming_arcs.iterkeys():
+                source = self._petri_net.places[arc]
+                self.add_arc(source, target, old_t.incoming_arcs[arc])
+            source = t
+            for arc in old_t.outgoing_arcs.iterkeys():
+                target = self._petri_net.places[arc]
+                self.add_arc(source, target, old_t.outgoing_arcs[arc])
+            
+            tags = ('label',) + self.gettags(canvas_id)
+            if self._label_transitions:
+                self.create_text(t.position.x,
+                                 t.position.y + label_padding*self._current_scale,
+                                 text = str(t),
                                  tags=tags )
             txtbox.grab_release()
             txtbox.destroy()
@@ -1305,7 +1394,7 @@ class PNEditor(Tkinter.Canvas):
             self._state = 'normal'
             self.itemconfig('place', state = Tkinter.NORMAL)
             self.itemconfig('transition&&' + TransitionTypes.IMMEDIATE + '&&!label', outline = PetriNet.TRANSITION_CONFIG[TransitionTypes.IMMEDIATE]['outline'], width = PetriNet.LINE_WIDTH)
-            self.itemconfig('transition&&' + TransitionTypes.STOCHASTIC + '&&!label', outline = PetriNet.TRANSITION_CONFIG[TransitionTypes.STOCHASTIC]['outline'], width = PetriNet.LINE_WIDTH)
+            self.itemconfig('transition&&' + TransitionTypes.TIMED_STOCHASTIC + '&&!label', outline = PetriNet.TRANSITION_CONFIG[TransitionTypes.TIMED_STOCHASTIC]['outline'], width = PetriNet.LINE_WIDTH)
             self.unbind('<Motion>', self._connecting_place_fn_id)
             self.delete('connecting')
             item = self._get_current_item(event)
