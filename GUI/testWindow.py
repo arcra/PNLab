@@ -9,6 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import Tkinter
 import tkFileDialog
+import tkMessageBox
 
 from PetriNets import PetriNet, Place, PlaceTypes, Transition, TransitionTypes, Vec2
 from GUI.PNEditorWidget import PNEditor
@@ -63,31 +64,41 @@ class testWindow(object):
     def open_PNML(self):
         filename = tkFileDialog.askopenfilename(
                                               defaultextension = '.pnml',
-                                              filetypes=[('PNML file', '*.pnml')],
-                                              title = 'Open PNML file...'
+                                              filetypes=[('PNML file', '*.pnml'), ('PNML file', '*.pnml.xml')],
+                                              title = 'Open PNML file...',
+                                              initialdir = '~/Desktop'
                                               )
         if not filename:
             return
         try:
-            pn = PetriNet.from_pnml_file(filename)
-            self.pne.set_petri_net(pn)
+            petri_nets = PetriNet.from_pnml_file(filename)
         except Exception as e:
-            print 'Error opening PNML file.'
-            print e
+            tkMessageBox.showerror('Error reading PNML file.', 'An error occurred while reading the PNML file.\n\n' + str(e))
+            return
+        
+        if len(petri_nets) > 1:
+            print 'More than 1 petri net loaded.'
+        
+        try:
+            self.pne.set_petri_net(petri_nets[0])
+        except Exception as e:
+            tkMessageBox.showerror('Error loading PetriNet.', 'An error occurred while loading the PetriNet object.\n\n' + str(e))
     
     def save_PNML(self):
         filename = tkFileDialog.asksaveasfilename(
                                                   defaultextension = '.pnml',
-                                                  filetypes=[('PNML file', '*.pnml')],
-                                                  title = 'Save as PNML file...'
+                                                  filetypes=[('PNML file', '*.pnml'), ('PNML file', '*.pnml.xml')],
+                                                  title = 'Save as PNML file...',
+                                                  initialdir = '~/Desktop'
                                                   )
         if not filename:
             return
+        self.pne.petri_net.to_pnml_file(filename)
+        return
         try:
             self.pne.petri_net.to_pnml_file(filename)
         except Exception as e:
-            print 'Error saving PNML file.'
-            print e
+            tkMessageBox.showerror('Error saving PNML file.', 'An error occurred while saving the PNML file.\n\n' + str(e))
     
 if __name__ == '__main__':
     w = testWindow()

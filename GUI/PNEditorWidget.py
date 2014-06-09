@@ -84,9 +84,6 @@ class PNEditor(Tkinter.Canvas):
         self._arc_menu = Tkinter.Menu(self, tearoff = 0)
         self._arc_menu.add_command(label = 'Remove arc', command = self._remove_arc)
         
-        self._place_count = 0
-        self._transition_count = 0
-        
         self._last_point = Vec2()
         
         self._anchor_tag = 'all'
@@ -97,7 +94,7 @@ class PNEditor(Tkinter.Canvas):
         
         self._current_grid_size = PNEditor._GRID_SIZE
         
-        self._draw_petri_net()
+        self.set_petri_net(self._petri_net)
         
         ################################
         #        EVENT BINDINGs
@@ -134,11 +131,11 @@ class PNEditor(Tkinter.Canvas):
         Check PetriNet saved attribute, before changing the Petri Net
         or destroying the widget.
         '''
-        
-        self._place_count = 0
-        self._transition_count = 0
-        
         self._petri_net = newPN
+        
+        self._place_count = len(newPN.places)
+        self._transition_count = len(newPN.transitions)
+        
         self._draw_petri_net()
     
     def add_place(self, p, overwrite = False):
@@ -151,6 +148,24 @@ class PNEditor(Tkinter.Canvas):
         
         if self._petri_net.add_place(p, overwrite):
             self._draw_place(p)
+            self._place_count += 1
+    
+    def add_transition(self, t, overwrite = False):
+        """Adds a transition to the Petri Net and draws it.
+        
+        Note that it uses the PetriNet Class' instance method
+        for adding the transition and so it will remove any arc information
+        it contains for the sake of maintaining consistency.
+        """
+        
+        if self._petri_net.add_transition(t, overwrite):
+            self._draw_transition(t)
+            self._transition_count += 1
+    
+    def add_arc(self, source, target, weight = 1):
+        """Adds an arc to the PetriNet object and draws it."""
+        self._petri_net.add_arc(source, target, weight)
+        self._draw_arc(source, target, weight)
     
     def remove_place(self, p):
         """Removes the place from the Petri Net.
@@ -163,22 +178,10 @@ class PNEditor(Tkinter.Canvas):
         
         p = self._petri_net.remove_place(p)
         
-        self.delete('place_' + str(p))
-        self.delete('source_' + str(p))
-        self.delete('target_' + str(p))
+        self.delete('place_' + repr(p))
+        self.delete('source_' + repr(p))
+        self.delete('target_' + repr(p))
         return p
-        
-    
-    def add_transition(self, t, overwrite = False):
-        """Adds a transition to the Petri Net and draws it.
-        
-        Note that it uses the PetriNet Class' instance method
-        for adding the transition and so it will remove any arc information
-        it contains for the sake of maintaining consistency.
-        """
-        
-        if self._petri_net.add_transition(t, overwrite):
-            self._draw_transition(t)
     
     def remove_transition(self, t):
         """Removes the transition from the Petri Net.
@@ -191,23 +194,18 @@ class PNEditor(Tkinter.Canvas):
         
         t = self._petri_net.remove_transition(t)
         
-        self.delete('transition_' + str(t))
-        self.delete('source_' + str(t))
-        self.delete('target_' + str(t))
+        self.delete('transition_' + repr(t))
+        self.delete('source_' + repr(t))
+        self.delete('target_' + repr(t))
         
         return t
-    
-    def add_arc(self, source, target, weight = 1):
-        """Adds an arc to the PetriNet object and draws it."""
-        self._petri_net.add_arc(source, target, weight)
-        self._draw_arc(source, target, weight)
     
     def remove_arc(self, source, target):
         """Removes an arc from the PetriNet object and from the canvas widget.""" 
         self._petri_net.remove_arc(source, target)
-        self.delete('source_' + str(source) + '&&' + 'target_' + str(target))
+        self.delete('source_' + repr(source) + '&&' + 'target_' + repr(target))
     
-    def _draw_petri_net(self, increase_count = True):
+    def _draw_petri_net(self):
         """Draws an entire PetriNet.
         
         increase_count should be False when redrawing, to prevent
@@ -218,9 +216,6 @@ class PNEditor(Tkinter.Canvas):
         
         self.delete('all')
         
-        place_count = self._place_count
-        transition_count = self._transition_count
-        
         self._draw_grid()
         
         for p in self._petri_net.places.itervalues():
@@ -228,10 +223,6 @@ class PNEditor(Tkinter.Canvas):
         
         for t in self._petri_net.transitions.itervalues():
             self._draw_transition(t)
-        
-        if not increase_count:
-            self._place_count = place_count
-            self._transition_count = transition_count
             
         self._draw_all_arcs()
     
@@ -293,7 +284,7 @@ class PNEditor(Tkinter.Canvas):
         
         self._petri_net.scale = self._current_scale*scale_factor
         
-        self._draw_petri_net(False)
+        self._draw_petri_net()
     
     def _draw_grid(self):
         """Draws the grid on the background."""
@@ -417,8 +408,8 @@ class PNEditor(Tkinter.Canvas):
         if isinstance(obj, Transition):
             arc_dict = self._petri_net.places
         
-        self.delete('source_' + str(obj))
-        self.delete('target_' + str(obj))
+        self.delete('source_' + repr(obj))
+        self.delete('target_' + repr(obj))
         target = obj
         for arc in obj.incoming_arcs.iterkeys():
             source = arc_dict[arc]
@@ -434,7 +425,7 @@ class PNEditor(Tkinter.Canvas):
         self._draw_marking(place_id, p)
         self.create_text(p.position.x,
                        p.position.y + PetriNet.PLACE_LABEL_PADDING*self._current_scale,
-                       tags = ('label', 'place_' + str(p)) + self.gettags(place_id),
+                       tags = ('label', 'place_' + repr(p)) + self.gettags(place_id),
                        text = str(p) )
         
         return place_id
@@ -451,7 +442,7 @@ class PNEditor(Tkinter.Canvas):
         if self._label_transitions:
             self.create_text(t.position.x,
                            t.position.y + padding*self._current_scale,
-                           tags = ('label', 'transition_' + str(t)) + self.gettags(trans_id),
+                           tags = ('label', 'transition_' + repr(t)) + self.gettags(trans_id),
                            text = str(t) )
         
         return trans_id
@@ -498,121 +489,6 @@ class PNEditor(Tkinter.Canvas):
         
         self.remove_arc(source, target)
     
-    def _switch_orientation(self):
-        """Menu callback to switch clicked transition's orientation."""
-        self._hide_menu()
-        name = self._get_transition_name()
-        
-        t = self._petri_net.transitions[name]
-        t.isHorizontal = not t.isHorizontal
-        
-        self.delete('source_' + name)
-        self.delete('target_' + name)
-        self.delete('transition_' + name)
-        
-        self._draw_transition(t)
-        self._transition_count -= 1
-        self._draw_item_arcs(t)
-        
-    def _set_initial_marking(self):
-        """Menu callback to set initial marking for a Place."""
-        self._hide_menu()
-        name = self._get_place_name()
-        p = self._petri_net.places[name]
-        self._set_marking_entry(self._last_clicked_id, p)
-        
-        txtbox = Tkinter.Entry(self)
-        txtbox.insert(0, str(p.init_marking))
-        txtbox.selection_range(0, Tkinter.END)
-        txtbox_id = self.create_window(p.position.x, p.position.y, height= 20, width = 20, window = txtbox)
-        txtbox.grab_set()
-        txtbox.focus_set()
-        
-        callback = self._get_marking_callback(txtbox, txtbox_id, self._last_clicked_id, p)
-        
-        txtbox.bind('<KeyPress-Return>', callback)
-    
-    def _get_marking_callback(self, txtbox, txtbox_id, canvas_id, p):
-        """Callback factory function for the marking entry widget."""
-        def txtboxCallback(event):
-            txt = txtbox.get()
-            if not PNEditor._MARKING_REGEX.match(txt):
-                msg = ('Please input a positive integer number for the marking.')
-                tkMessageBox.showerror('Invalid Marking', msg)
-                return
-            p.init_marking = int(txt)
-            self._draw_marking(canvas_id, p)
-            txtbox.grab_release()
-            txtbox.destroy()
-            self.delete(txtbox_id)
-            
-        return txtboxCallback
-    
-    def _draw_marking(self, canvas_id, p):
-        """Draws the marking of the given place."""
-        tag = 'token_' + str(p)
-        
-        self.delete(tag)
-        
-        if p.init_marking == 0:
-            return
-        tags = ('token', tag) + self.gettags(canvas_id)
-        if p.init_marking == 1:
-            self.create_oval(p.position.x - PNEditor._TOKEN_RADIUS,
-                             p.position.y - PNEditor._TOKEN_RADIUS,
-                             p.position.x + PNEditor._TOKEN_RADIUS,
-                             p.position.y + PNEditor._TOKEN_RADIUS,
-                             tags = tags,
-                             fill = 'black' )
-            self.scale(tag, p.position.x, p.position.y, self._current_scale, self._current_scale)
-            return
-        if p.init_marking == 2:
-            self.create_oval(p.position.x - 3*PNEditor._TOKEN_RADIUS,
-                             p.position.y - PNEditor._TOKEN_RADIUS,
-                             p.position.x - PNEditor._TOKEN_RADIUS,
-                             p.position.y + PNEditor._TOKEN_RADIUS,
-                             tags = tags,
-                             fill = 'black' )
-            self.create_oval(p.position.x + PNEditor._TOKEN_RADIUS,
-                             p.position.y - PNEditor._TOKEN_RADIUS,
-                             p.position.x + 3*PNEditor._TOKEN_RADIUS,
-                             p.position.y + PNEditor._TOKEN_RADIUS,
-                             tags = tags,
-                             fill = 'black' )
-            self.scale(tag, p.position.x, p.position.y, self._current_scale, self._current_scale)
-            return
-        if p.init_marking == 3:
-            self.create_oval(p.position.x + PNEditor._TOKEN_RADIUS,
-                             p.position.y + PNEditor._TOKEN_RADIUS,
-                             p.position.x + 3*PNEditor._TOKEN_RADIUS,
-                             p.position.y + 3*PNEditor._TOKEN_RADIUS,
-                             tags = tags,
-                             fill = 'black' )
-            self.create_oval(p.position.x - 3*PNEditor._TOKEN_RADIUS,
-                             p.position.y + PNEditor._TOKEN_RADIUS,
-                             p.position.x - PNEditor._TOKEN_RADIUS,
-                             p.position.y + 3*PNEditor._TOKEN_RADIUS,
-                             tags = tags,
-                             fill = 'black' )
-            self.create_oval(p.position.x - PNEditor._TOKEN_RADIUS,
-                             p.position.y - 3*PNEditor._TOKEN_RADIUS,
-                             p.position.x + PNEditor._TOKEN_RADIUS,
-                             p.position.y - PNEditor._TOKEN_RADIUS,
-                             tags = tags,
-                             fill = 'black' )
-            self.scale(tag, p.position.x, p.position.y, self._current_scale, self._current_scale)
-            return
-        
-        fill = 'black'
-        if p.type == PlaceTypes.PREDICATE:
-            fill = 'white'
-        
-        self.create_text(p.position.x,
-                         p.position.y,
-                         text = str(p.init_marking),
-                         tags=tags,
-                         fill = fill )
-    
     def _rename_place(self):
         """Menu callback to rename clicked place.
             
@@ -626,7 +502,6 @@ class PNEditor(Tkinter.Canvas):
         h = int(self.config()['height'][4])
         entry_y = self._last_point.y + (PetriNet.PLACE_LABEL_PADDING + 10)*self._current_scale + 10
         if entry_y > h:
-            #old_p.position.y -= entry_y - h
             dif = Vec2(0.0, h - entry_y)
             self.move('all', dif.x, dif.y)
             for p in self._petri_net.places.itervalues():
@@ -638,12 +513,13 @@ class PNEditor(Tkinter.Canvas):
                 self._grid_offset = (self._grid_offset + dif).int
                 self._draw_grid()
         
-        old_p = self.remove_place(name)
+        p = self._petri_net.places[name]
+        canvas_id = self._last_clicked_id
         
-        item = self._draw_place_item(old_p.position, old_p.type, False)
-        p = Place(old_p.name, old_p.type, old_p.position)
+        self.delete('label&&place_' + repr(p))
         
-        self._set_rename_place_entry(item, p, old_p)
+        self.dtag('p_' + str(canvas_id), 'place_' + repr(p))
+        self._set_rename_place_entry(canvas_id, p)
         
     def _rename_transition(self):
         """Menu callback to rename clicked transition.
@@ -670,12 +546,13 @@ class PNEditor(Tkinter.Canvas):
                 self._grid_offset = (self._grid_offset + dif).int
                 self._draw_grid()
         
-        old_t = self.remove_transition(name)
+        t = self._petri_net.transitions[name]
+        canvas_id = self._last_clicked_id
         
-        item = self._draw_transition_item(old_t.position, old_t.type, False)
-        t = Transition(old_t.name, old_t.type, old_t.position)
+        self.delete('label&&transition_' + repr(t))
         
-        self._set_rename_transition_entry(item, t, old_t)
+        self.dtag('t_' + str(canvas_id), 'transition_' + repr(t))
+        self._set_rename_transition_entry(canvas_id, t)
     
     def _connect_place_to(self):
         """Menu callback to connect clicked place to a transition."""
@@ -758,6 +635,120 @@ class PNEditor(Tkinter.Canvas):
                      arrow= Tkinter.LAST,
                      arrowshape = (10,12,5) )
     
+    def _switch_orientation(self):
+        """Menu callback to switch clicked transition's orientation."""
+        self._hide_menu()
+        name = self._get_transition_name()
+        
+        t = self._petri_net.transitions[name]
+        t.isHorizontal = not t.isHorizontal
+        
+        self.delete('source_' + name)
+        self.delete('target_' + name)
+        self.delete('transition_' + name)
+        
+        self._draw_transition(t)
+        self._draw_item_arcs(t)
+        
+    def _set_initial_marking(self):
+        """Menu callback to set initial marking for a Place."""
+        self._hide_menu()
+        name = self._get_place_name()
+        p = self._petri_net.places[name]
+        self._set_marking_entry(self._last_clicked_id, p)
+        
+        txtbox = Tkinter.Entry(self)
+        txtbox.insert(0, str(p.init_marking))
+        txtbox.selection_range(0, Tkinter.END)
+        txtbox_id = self.create_window(p.position.x, p.position.y, height= 20, width = 20, window = txtbox)
+        txtbox.grab_set()
+        txtbox.focus_set()
+        
+        callback = self._get_marking_callback(txtbox, txtbox_id, self._last_clicked_id, p)
+        
+        txtbox.bind('<KeyPress-Return>', callback)
+    
+    def _get_marking_callback(self, txtbox, txtbox_id, canvas_id, p):
+        """Callback factory function for the marking entry widget."""
+        def txtboxCallback(event):
+            txt = txtbox.get()
+            if not PNEditor._MARKING_REGEX.match(txt):
+                msg = ('Please input a positive integer number for the marking.')
+                tkMessageBox.showerror('Invalid Marking', msg)
+                return
+            p.init_marking = int(txt)
+            self._draw_marking(canvas_id, p)
+            txtbox.grab_release()
+            txtbox.destroy()
+            self.delete(txtbox_id)
+            
+        return txtboxCallback
+    
+    def _draw_marking(self, canvas_id, p):
+        """Draws the marking of the given place."""
+        tag = 'token_' + repr(p)
+        
+        self.delete(tag)
+        
+        if p.init_marking == 0:
+            return
+        tags = ('token', tag) + self.gettags(canvas_id)
+        if p.init_marking == 1:
+            self.create_oval(p.position.x - PNEditor._TOKEN_RADIUS,
+                             p.position.y - PNEditor._TOKEN_RADIUS,
+                             p.position.x + PNEditor._TOKEN_RADIUS,
+                             p.position.y + PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black' )
+            self.scale(tag, p.position.x, p.position.y, self._current_scale, self._current_scale)
+            return
+        if p.init_marking == 2:
+            self.create_oval(p.position.x - 3*PNEditor._TOKEN_RADIUS,
+                             p.position.y - PNEditor._TOKEN_RADIUS,
+                             p.position.x - PNEditor._TOKEN_RADIUS,
+                             p.position.y + PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black' )
+            self.create_oval(p.position.x + PNEditor._TOKEN_RADIUS,
+                             p.position.y - PNEditor._TOKEN_RADIUS,
+                             p.position.x + 3*PNEditor._TOKEN_RADIUS,
+                             p.position.y + PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black' )
+            self.scale(tag, p.position.x, p.position.y, self._current_scale, self._current_scale)
+            return
+        if p.init_marking == 3:
+            self.create_oval(p.position.x + PNEditor._TOKEN_RADIUS,
+                             p.position.y + PNEditor._TOKEN_RADIUS,
+                             p.position.x + 3*PNEditor._TOKEN_RADIUS,
+                             p.position.y + 3*PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black' )
+            self.create_oval(p.position.x - 3*PNEditor._TOKEN_RADIUS,
+                             p.position.y + PNEditor._TOKEN_RADIUS,
+                             p.position.x - PNEditor._TOKEN_RADIUS,
+                             p.position.y + 3*PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black' )
+            self.create_oval(p.position.x - PNEditor._TOKEN_RADIUS,
+                             p.position.y - 3*PNEditor._TOKEN_RADIUS,
+                             p.position.x + PNEditor._TOKEN_RADIUS,
+                             p.position.y - PNEditor._TOKEN_RADIUS,
+                             tags = tags,
+                             fill = 'black' )
+            self.scale(tag, p.position.x, p.position.y, self._current_scale, self._current_scale)
+            return
+        
+        fill = 'black'
+        if p.type == PlaceTypes.PREDICATE:
+            fill = 'white'
+        
+        self.create_text(p.position.x,
+                         p.position.y,
+                         text = str(p.init_marking),
+                         tags=tags,
+                         fill = fill )
+    
     def _create_action_place(self):
         """Menu callback to create an ACTION place."""
         self._hide_menu()
@@ -797,7 +788,7 @@ class PNEditor(Tkinter.Canvas):
             self._last_point += dif
         
         item = self._draw_place_item(self._last_point, placeType)
-        p = Place('p' + '%02d' % self._place_count, placeType, self._last_point)
+        p = Place('p' + '%02d' % (self._place_count + 1), placeType, self._last_point)
         self._set_create_place_entry(item, p)
     
     def _create_immediate_transition(self):
@@ -832,10 +823,10 @@ class PNEditor(Tkinter.Canvas):
             self._last_point += dif
         
         item = self._draw_transition_item(self._last_point, transitionType)
-        t = Transition('t' + '%02d' % self._transition_count, transitionType, self._last_point)
+        t = Transition('t' + '%02d' % (self._transition_count + 1), transitionType, self._last_point)
         self._set_create_transition_entry(item, t)
     
-    def _draw_place_item(self, point = None, placeType = PlaceTypes.PREDICATE, increase_place_count = True, place = None):
+    def _draw_place_item(self, point = None, placeType = PlaceTypes.PREDICATE, place = None):
         """Draws a place item, with the attributes corresponding to the place type.
         
             Returns the id generated by the canvas widget.
@@ -844,7 +835,7 @@ class PNEditor(Tkinter.Canvas):
         place_tag = ''
         if place:
             point = place.position
-            place_tag = 'place_' + str(place)
+            place_tag = 'place_' + repr(place)
             placeType = place.type
         elif not point:
             point = Vec2()
@@ -862,11 +853,9 @@ class PNEditor(Tkinter.Canvas):
                          disabledoutline = '#888888' )
         self.addtag_withtag('p_' + str(item), item)
         self.scale(item, point.x, point.y, self._current_scale, self._current_scale)
-        if increase_place_count:
-            self._place_count += 1
         return item
     
-    def _draw_transition_item(self, point = None, transitionType = TransitionTypes.IMMEDIATE, increase_transition_count = True, transition = None):
+    def _draw_transition_item(self, point = None, transitionType = TransitionTypes.IMMEDIATE, transition = None):
         """Draws a transition item, with the attributes corresponding to the transition type.
         
             Returns the id generated by the canvas widget.
@@ -876,7 +865,7 @@ class PNEditor(Tkinter.Canvas):
         transition_tag = ''
         if transition:
             point = transition.position
-            transition_tag = 'transition_' + str(transition)
+            transition_tag = 'transition_' + repr(transition)
             transitionType = transition.type
         elif not point:
             point = Vec2()
@@ -902,8 +891,6 @@ class PNEditor(Tkinter.Canvas):
         
         self.addtag_withtag('t_' + str(item), item)
         self.scale(item, point.x, point.y, self._current_scale, self._current_scale)
-        if increase_transition_count:
-            self._transition_count += 1
         return item
     
     def _set_create_place_entry(self, canvas_id, p):
@@ -967,20 +954,18 @@ class PNEditor(Tkinter.Canvas):
                     Examples: a.my_Action, t.task1')
                 tkMessageBox.showerror('Invalid Name', msg)
                 return
-            if txt in self._petri_net.places:
-                tkMessageBox.showerror('Duplicate name', 'A place of the same type with that name already exists in the Petri Net.')
-                return
-            new_p = Place(txt[2:], p.type, p.position)
+            new_p = Place(txt[2:], p.type, p.position, p.init_marking, p.capacity)
             label_padding = PetriNet.PLACE_LABEL_PADDING
             if not self._petri_net.add_place(new_p):
-                tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
+                tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net. Possible id duplicate.')
                 return
-            self.addtag_withtag('place_' + str(new_p), canvas_id)
+            self.addtag_withtag('place_' + repr(new_p), canvas_id)
             tags = ('label',) + self.gettags(canvas_id)
             self.create_text(new_p.position.x,
                              new_p.position.y + label_padding*self._current_scale,
                              text = str(new_p),
                              tags=tags )
+            self._place_count += 1
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
@@ -999,24 +984,22 @@ class PNEditor(Tkinter.Canvas):
                        Example: i.transition1, s.t-2")
                 tkMessageBox.showerror('Invalid Name', msg)
                 return
-            if txt in self._petri_net.transitions:
-                tkMessageBox.showerror('Duplicate name', 'A transition with that name already exists in the Petri Net.')
-                return
-            new_t = Transition(txt[2:], t.type, t.position)
-            if t.isHorizontal:
+            new_t = Transition(txt[2:], t.type, t.position, t.isHorizontal, t.rate, t.priority)
+            if new_t.isHorizontal:
                 label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING
             else:
                 label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING
             if not self._petri_net.add_transition(new_t):
-                tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
+                tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net. Possible duplicate id.')
                 return
-            self.addtag_withtag('transition_' + str(new_t), canvas_id)
+            self.addtag_withtag('transition_' + repr(new_t), canvas_id)
             tags = ('label',) + self.gettags(canvas_id)
             if self._label_transitions:
                 self.create_text(new_t.position.x,
                                  new_t.position.y + label_padding*self._current_scale,
                                  text = str(new_t),
                                  tags=tags )
+            self._transition_count += 1
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
@@ -1029,20 +1012,16 @@ class PNEditor(Tkinter.Canvas):
             txtbox.destroy()
             self.delete(txtbox_id)
             self.delete(canvas_id)
-            if isinstance(obj, Place):
-                self._place_count -= 1
-            else:
-                self._transition_count -= 1
         return escape_callback
     
-    def _set_rename_place_entry(self, canvas_id, p, old_p):
+    def _set_rename_place_entry(self, canvas_id, p):
         """Sets the Entry Widget used to set the new name of a place.
             
             Calls the callback factory functions to bind the callbacks 
             to the <KeyPress-Return> and <KeyPress-Escape> events.
         """
         txtbox = Tkinter.Entry(self)
-        txtbox.insert(0, str(old_p))
+        txtbox.insert(0, str(p))
         txtbox.selection_range(2, Tkinter.END)
         
         #extra padding because entry position refers to the center, not the corner
@@ -1052,21 +1031,21 @@ class PNEditor(Tkinter.Canvas):
         txtbox.grab_set()
         txtbox.focus_set()
         
-        callback = self._get_rename_place_callback(txtbox, txtbox_id, canvas_id, p, old_p)
+        callback = self._get_rename_place_callback(txtbox, txtbox_id, canvas_id, p)
         
-        escape_callback = self._get_cancel_rename_place_callback(txtbox, txtbox_id, canvas_id, p, old_p)
+        escape_callback = self._get_cancel_rename_place_callback(txtbox, txtbox_id, canvas_id, p)
         
         txtbox.bind('<KeyPress-Return>', callback)
         txtbox.bind('<KeyPress-Escape>', escape_callback)
     
-    def _set_rename_transition_entry(self, canvas_id, t, old_t):
+    def _set_rename_transition_entry(self, canvas_id, t):
         """Sets the Entry Widget used to set the new name of a transition.
             
             Calls the callback factory functions to bind the callbacks 
             to the <KeyPress-Return> and <KeyPress-Escape> events.
         """
         txtbox = Tkinter.Entry(self)
-        txtbox.insert(0, str(old_t))
+        txtbox.insert(0, str(t))
         txtbox.selection_range(2, Tkinter.END)
         
         #extra padding because entry position refers to the center, not the corner
@@ -1079,14 +1058,14 @@ class PNEditor(Tkinter.Canvas):
         txtbox.grab_set()
         txtbox.focus_set()
         
-        callback = self._get_rename_transition_callback(txtbox, txtbox_id, canvas_id, t, old_t)
+        callback = self._get_rename_transition_callback(txtbox, txtbox_id, canvas_id, t)
         
-        escape_callback = self._get_cancel_rename_transition_callback(txtbox, txtbox_id, canvas_id, t, old_t)
+        escape_callback = self._get_cancel_rename_transition_callback(txtbox, txtbox_id, canvas_id, t)
         
         txtbox.bind('<KeyPress-Return>', callback)
         txtbox.bind('<KeyPress-Escape>', escape_callback)
     
-    def _get_rename_place_callback(self, txtbox, txtbox_id, canvas_id, p, old_p):
+    def _get_rename_place_callback(self, txtbox, txtbox_id, canvas_id, p):
         """Callback factory function for the <KeyPress-Return> event of the 'rename place' entry widget."""
         def txtboxCallback(event):
             txt = txtbox.get()
@@ -1098,38 +1077,31 @@ class PNEditor(Tkinter.Canvas):
                     Examples: a.my_Action, t.task1')
                 tkMessageBox.showerror('Invalid Name', msg)
                 return
-            if txt in self._petri_net.places:
-                tkMessageBox.showerror('Duplicate name', 'A place of the same type with that name already exists in the Petri Net.')
+            self.delete('source_' + repr(p))
+            self.delete('target_' + repr(p))
+            try:
+                if not self._petri_net.rename_place(p, txt[2:]):
+                    self._draw_item_arcs(p)
+                    tkMessageBox.showerror('Duplicate name', 'A place of the same type with that name already exists in the Petri Net.')
+                    return
+            except Exception as e:
+                self._draw_item_arcs(p)
+                tkMessageBox.showerror('ERROR', str(e))
                 return
-            new_p = Place(txt[2:], p.type, p.position)
-            label_padding = PetriNet.PLACE_LABEL_PADDING
-            if not self._petri_net.add_place(new_p):
-                tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
-                return
-            self.addtag_withtag('place_' + str(new_p), canvas_id)
-            
-            target = new_p
-            for arc in old_p.incoming_arcs.iterkeys():
-                source = self._petri_net.transitions[arc]
-                self.add_arc(source, target, old_p.incoming_arcs[arc])
-            source = new_p
-            for arc in old_p.outgoing_arcs.iterkeys():
-                target = self._petri_net.transitions[arc]
-                self.add_arc(source, target, old_p.outgoing_arcs[arc])
-            
+            self.addtag_withtag('place_' + repr(p), canvas_id)
             tags = ('label',) + self.gettags(canvas_id)
-            self.create_text(new_p.position.x,
-                             new_p.position.y + label_padding*self._current_scale,
-                             text = str(new_p),
+            self.create_text(p.position.x,
+                             p.position.y + PetriNet.PLACE_LABEL_PADDING*self._current_scale,
+                             text = str(p),
                              tags=tags )
+            self._draw_item_arcs(p)
             
-            new_p._treeElement = old_p._treeElement
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
         return txtboxCallback
     
-    def _get_rename_transition_callback(self, txtbox, txtbox_id, canvas_id, t, old_t):
+    def _get_rename_transition_callback(self, txtbox, txtbox_id, canvas_id, t):
         """Callback factory function for the <KeyPress-Return> event of the 'rename transition' entry widget."""
         def txtboxCallback(event):
             txt = txtbox.get()
@@ -1142,90 +1114,59 @@ class PNEditor(Tkinter.Canvas):
                        Example: i.transition1, s.t-2")
                 tkMessageBox.showerror('Invalid Name', msg)
                 return
-            if txt in self._petri_net.transitions:
-                tkMessageBox.showerror('Duplicate name', 'A transition with that name already exists in the Petri Net.')
+            self.delete('source_' + repr(t))
+            self.delete('target_' + repr(t))
+            try:
+                if not self._petri_net.rename_transition(t, txt[2:]):
+                    self._draw_item_arcs(t)
+                    tkMessageBox.showerror('Duplicate name', 'A transition of the same type with that name already exists in the Petri Net.')
+                    return
+            except Exception as e:
+                self._draw_item_arcs(t)
+                tkMessageBox.showerror('ERROR', str(e))
                 return
-            new_t = Transition(txt[2:], t.type, t.position)
+            self.addtag_withtag('transition_' + repr(t), canvas_id)
             if t.isHorizontal:
-                label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING
+                label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING + 10
             else:
-                label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING
-            if not self._petri_net.add_transition(new_t):
-                tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
-                return
-            self.addtag_withtag('transition_' + str(new_t), canvas_id)
-            
-            target = new_t
-            for arc in old_t.incoming_arcs.iterkeys():
-                source = self._petri_net.places[arc]
-                self.add_arc(source, target, old_t.incoming_arcs[arc])
-            source = new_t
-            for arc in old_t.outgoing_arcs.iterkeys():
-                target = self._petri_net.places[arc]
-                self.add_arc(source, target, old_t.outgoing_arcs[arc])
-            
+                label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING + 10
             tags = ('label',) + self.gettags(canvas_id)
             if self._label_transitions:
-                self.create_text(new_t.position.x,
-                                 new_t.position.y + label_padding*self._current_scale,
-                                 text = str(new_t),
+                self.create_text(t.position.x,
+                                 t.position.y + label_padding*self._current_scale,
+                                 text = str(t),
                                  tags=tags )
+            self._draw_item_arcs(t)
             
-            new_t._treeElement = old_t._treeElement
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
         return txtboxCallback
     
-    def _get_cancel_rename_place_callback(self, txtbox, txtbox_id, canvas_id, p, old_p):
+    def _get_cancel_rename_place_callback(self, txtbox, txtbox_id, canvas_id, p):
         """Callback factory function for the <KeyPress-Escape> event of the 'rename place' entry widget."""
         def escape_callback(event):
             label_padding = PetriNet.PLACE_LABEL_PADDING
-            if not self._petri_net.add_place(p):
-                tkMessageBox.showerror('Insertion failed', 'Failed to add place to the Petri Net.')
-                return
-            self.addtag_withtag('place_' + str(p), canvas_id)
-            
-            target = p
-            for arc in old_p.incoming_arcs.iterkeys():
-                source = self._petri_net.transitions[arc]
-                self.add_arc(source, target, old_p.incoming_arcs[arc])
-            source = p
-            for arc in old_p.outgoing_arcs.iterkeys():
-                target = self._petri_net.transitions[arc]
-                self.add_arc(source, target, old_p.outgoing_arcs[arc])
-            
+            self.addtag_withtag('place_' + repr(p), canvas_id)
             tags = ('label',) + self.gettags(canvas_id)
             self.create_text(p.position.x,
                              p.position.y + label_padding*self._current_scale,
                              text = str(p),
                              tags=tags )
+            self._draw_item_arcs(p)
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
         return escape_callback
     
-    def _get_cancel_rename_transition_callback(self, txtbox, txtbox_id, canvas_id, t, old_t):
+    def _get_cancel_rename_transition_callback(self, txtbox, txtbox_id, canvas_id, t):
         """Callback factory function for the <KeyPress-Escape> event of the 'rename transition' entry widget."""
         def escape_callback(event):
             if t.isHorizontal:
                 label_padding = PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING
             else:
                 label_padding = PetriNet.TRANSITION_VERTICAL_LABEL_PADDING
-            if not self._petri_net.add_transition(t):
-                tkMessageBox.showerror('Insertion failed', 'Failed to add transition to the Petri Net.')
-                return
-            self.addtag_withtag('transition_' + str(t), canvas_id)
-            
-            target = t
-            for arc in old_t.incoming_arcs.iterkeys():
-                source = self._petri_net.places[arc]
-                self.add_arc(source, target, old_t.incoming_arcs[arc])
-            source = t
-            for arc in old_t.outgoing_arcs.iterkeys():
-                target = self._petri_net.places[arc]
-                self.add_arc(source, target, old_t.outgoing_arcs[arc])
-            
+            self.addtag_withtag('transition_' + repr(t), canvas_id)
             tags = ('label',) + self.gettags(canvas_id)
             if self._label_transitions:
                 self.create_text(t.position.x,
@@ -1259,7 +1200,7 @@ class PNEditor(Tkinter.Canvas):
             src_point = transition_point
             trgt_point = place_point
         
-        tags = ('arc', 'source_' + str(source), 'target_' + str(target))
+        tags = ('arc', 'source_' + repr(source), 'target_' + repr(target))
         
         self.create_line(src_point.x,
                          src_point.y,
@@ -1462,7 +1403,6 @@ class PNEditor(Tkinter.Canvas):
         
         dif = e - self._last_point
         self.move(self._anchor_tag, dif.x, dif.y)
-        
         if self._anchor_tag != 'all':
             name = ''
             item_dict = self._petri_net.places
