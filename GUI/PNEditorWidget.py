@@ -1370,6 +1370,10 @@ class PNEditor(Tkinter.Canvas):
     
     def _scale_up(self, event):
         """Callback for the wheel-scroll to scale the canvas elements to look like a zoom-in."""
+        
+        if self._state != 'normal':
+            return
+        
         e = Vec2(event.x, event.y)
         scale_factor = 1.11111111
         self.scale('all', e.x, e.y, scale_factor, scale_factor)
@@ -1386,6 +1390,10 @@ class PNEditor(Tkinter.Canvas):
     
     def _scale_down(self, event):
         """Callback for the wheel-scroll to scale the canvas elements to look like a zoom-out."""
+        
+        if self._state != 'normal':
+            return
+        
         e = Vec2(event.x, event.y)
         scale_factor = 0.9
         self.scale('all', e.x, e.y, scale_factor, scale_factor)
