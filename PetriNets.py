@@ -916,6 +916,8 @@ class PetriNet(object):
         else:
             self.transitions[src]._outgoing_arcs[trgt] = arc
             self.places[trgt]._incoming_arcs[src] = arc
+        
+        return arc
     
     def remove_arc(self, source, target):
         """

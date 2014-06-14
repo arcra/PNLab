@@ -9,6 +9,7 @@ import tkMessageBox
 
 from copy import deepcopy
 from PetriNets import Place, PlaceTypes, Vec2, Transition, TransitionTypes, PetriNet
+from InputDialogs import PositiveIntDialog, NonNegativeFloatDialog
 
 class PNEditor(Tkinter.Canvas):
     
@@ -68,6 +69,7 @@ class PNEditor(Tkinter.Canvas):
         self._place_menu = Tkinter.Menu(self, tearoff = 0)
         self._place_menu.add_command(label = 'Rename Place', command = self._rename_place)
         self._place_menu.add_command(label = 'Set Initial Marking', command = self._set_initial_marking)
+        self._place_menu.add_command(label = 'Set Capacity', command = self._set_capacity)
         self._place_menu.add_separator()
         self._place_menu.add_command(label = 'Remove Place', command = self._remove_place)
         self._place_menu.add_separator()
@@ -76,12 +78,16 @@ class PNEditor(Tkinter.Canvas):
         self._transition_menu = Tkinter.Menu(self, tearoff = 0)
         self._transition_menu.add_command(label = 'Rename Transition', command = self._rename_transition)
         self._transition_menu.add_command(label = 'Switch orientation', command = self._switch_orientation)
+        self._transition_menu.add_command(label = 'Set Rate', command = self._set_rate)
+        self._transition_menu.add_command(label = 'Set Priority', command = self._set_priority)
         self._transition_menu.add_separator()
         self._transition_menu.add_command(label = 'Remove Transition', command = self._remove_transition)
         self._transition_menu.add_separator()
         self._transition_menu.add_command(label = 'Connect to...', command = self._connect_transition_to)
         
         self._arc_menu = Tkinter.Menu(self, tearoff = 0)
+        self._arc_menu.add_command(label = 'Set weight', command = self._set_weight)
+        self._arc_menu.add_separator()
         self._arc_menu.add_command(label = 'Remove arc', command = self._remove_arc)
         
         self._last_point = Vec2()
@@ -122,6 +128,12 @@ class PNEditor(Tkinter.Canvas):
     def petri_net(self):
         """Read-only propery. Deepcopy of the petri net object."""
         return deepcopy(self._petri_net)
+    
+    def disable(self):
+        self._state = 'disabled'
+    
+    def enable(self):
+        self._state = 'normal'
     
     def set_petri_net(self, newPN):
         """Loads a new Petri Net object to be viewed/edited."""
@@ -164,8 +176,8 @@ class PNEditor(Tkinter.Canvas):
     
     def add_arc(self, source, target, weight = 1):
         """Adds an arc to the PetriNet object and draws it."""
-        self._petri_net.add_arc(source, target, weight)
-        self._draw_arc(source, target, weight)
+        arc = self._petri_net.add_arc(source, target, weight)
+        self._draw_arc(arc)
     
     def remove_place(self, p):
         """Removes the place from the Petri Net.
@@ -393,31 +405,20 @@ class PNEditor(Tkinter.Canvas):
         self.delete('arc')
         
         for p in self._petri_net.places.itervalues():
-            target = p
-            for arc in p.incoming_arcs.iterkeys():
-                source = self._petri_net.transitions[arc]
-                self._draw_arc(source, target)
-            source = p
-            for arc in p.outgoing_arcs.iterkeys():
-                target = self._petri_net.transitions[arc]
-                self._draw_arc(source, target)
+            for arc in p.incoming_arcs.itervalues():
+                self._draw_arc(arc)
+            for arc in p.outgoing_arcs.itervalues():
+                self._draw_arc(arc)
     
     def _draw_item_arcs(self, obj):
         """Draws the arcs of one node from the PetriNet object."""
-        arc_dict = self._petri_net.transitions
-        if isinstance(obj, Transition):
-            arc_dict = self._petri_net.places
         
         self.delete('source_' + repr(obj))
         self.delete('target_' + repr(obj))
-        target = obj
-        for arc in obj.incoming_arcs.iterkeys():
-            source = arc_dict[arc]
-            self._draw_arc(source, target)
-        source = obj
-        for arc in obj.outgoing_arcs.iterkeys():
-            target = arc_dict[arc]
-            self._draw_arc(source, target)
+        for arc in obj.incoming_arcs.itervalues():
+            self._draw_arc(arc)
+        for arc in obj.outgoing_arcs.itervalues():
+            self._draw_arc(arc)
     
     def _draw_place(self, p):
         """Draws a place object in the canvas widget."""
@@ -651,7 +652,7 @@ class PNEditor(Tkinter.Canvas):
         self._draw_item_arcs(t)
         
     def _set_initial_marking(self):
-        """Menu callback to set initial marking for a Place."""
+        """Menu callback to set the initial marking of a Place."""
         self._hide_menu()
         name = self._get_place_name()
         p = self._petri_net.places[name]
@@ -667,6 +668,83 @@ class PNEditor(Tkinter.Canvas):
         callback = self._get_marking_callback(txtbox, txtbox_id, self._last_clicked_id, p)
         
         txtbox.bind('<KeyPress-Return>', callback)
+    
+    def _set_capacity(self):
+        """Menu callback to set the capacity of a Place."""
+        self._hide_menu()
+        name = self._get_place_name()
+        p = self._petri_net.places[name]
+        
+        dialog = PositiveIntDialog('Set place capacity', 'Write a positive number for \nthe capacity of place: ' + str(p), 'Capacity', init_value = p.capacity)
+        dialog.window.transient(self)
+        self._state = 'dialog'
+        self.wait_window(dialog.window)
+        self._state = 'normal'
+        if dialog.value_set:
+            p.capacity = int(dialog.input_var.get())
+    
+    def _set_rate(self):
+        """Menu callback to set the rate of a Transition."""
+        self._hide_menu()
+        name = self._get_transition_name()
+        t = self._petri_net.transitions[name]
+        
+        dialog = NonNegativeFloatDialog("Set transition's rate", 'Write a positive decimal number for \nthe rate of transition: ' + str(t), 'Rate', init_value = t.rate)
+        dialog.window.transient(self)
+        self._state = 'dialog'
+        self.wait_window(dialog.window)
+        self._state = 'normal'
+        if dialog.value_set:
+            t.rate = float(dialog.input_var.get())
+    
+    def _set_priority(self):
+        """Menu callback to set the priority of a Transition."""
+        self._hide_menu()
+        name = self._get_transition_name()
+        t = self._petri_net.transitions[name]
+        
+        dialog = PositiveIntDialog("Set transition's priority", 'Write a positive integer for \nthe priority of transition: ' + str(t), 'Priority', init_value = t.priority)
+        dialog.window.transient(self)
+        self._state = 'dialog'
+        self.wait_window(dialog.window)
+        self._state = 'normal'
+        if dialog.value_set:
+            t.priority = int(dialog.input_var.get())
+    
+    def _set_weight(self):
+        """Menu callback to set the weight of an arc."""
+        self._hide_menu()
+        
+        tags = self.gettags(self._last_clicked_id)
+        
+        if 'arc' not in tags:
+            return None
+        
+        source_name = ''
+        target_name = ''
+        
+        for tag in tags:
+            if tag[:7] == 'source_':
+                source_name = tag[7:]
+            elif tag[:7] == 'target_':
+                target_name = tag[7:]
+        
+        if not source_name or not target_name:
+            raise Exception('No source and target specified!')
+        
+        if source_name in self._petri_net.places:
+            arc = self._petri_net.places[source_name]._outgoing_arcs[target_name] 
+        else:
+            arc = self._petri_net.places[target_name]._incoming_arcs[source_name]
+            
+        dialog = PositiveIntDialog("Set arc's weight", 'Write a positive integer for \nthe weight of arc: ' + str(arc), 'Weight', init_value = arc.weight)
+        dialog.window.transient(self)
+        self._state = 'dialog'
+        self.wait_window(dialog.window)
+        self._state = 'normal'
+        if dialog.value_set:
+            arc.weight = int(dialog.input_var.get())
+            self._draw_arc(arc)
     
     def _get_marking_callback(self, txtbox, txtbox_id, canvas_id, p):
         """Callback factory function for the marking entry widget."""
@@ -1178,29 +1256,31 @@ class PNEditor(Tkinter.Canvas):
             self.delete(txtbox_id)
         return escape_callback
     
-    def _draw_arc(self, source, target, weight = 1):
+    def _draw_arc(self, arc):
         """Draws the arc specified by the source and target objects, which must be
             instances of Place and Transition classes, one of each."""
-        if isinstance(source, Place):
-            p = source
-            t = target
+        if isinstance(arc.source, Place):
+            p = arc.source
+            t = arc.target
         else:
-            p = target
-            t = source
+            p = arc.target
+            t = arc.source
+        
+        self.delete('source_' + repr(arc.source) + '&&target_' + repr(arc.target))
         
         place_vec = t.position - p.position
         trans_vec = -place_vec
         place_point = p.position + place_vec.unit*PetriNet.PLACE_RADIUS*self._current_scale
         transition_point = self._find_intersection(t, trans_vec)
         
-        if isinstance(source, Place):
+        if isinstance(arc.source, Place):
             src_point = place_point
             trgt_point = transition_point
         else:
             src_point = transition_point
             trgt_point = place_point
         
-        tags = ('arc', 'source_' + repr(source), 'target_' + repr(target))
+        tags = ('arc', 'source_' + repr(arc.source), 'target_' + repr(arc.target))
         
         self.create_line(src_point.x,
                          src_point.y,
@@ -1210,6 +1290,16 @@ class PNEditor(Tkinter.Canvas):
                          width = PetriNet.LINE_WIDTH,
                          arrow= Tkinter.LAST,
                          arrowshape = (10,12,5) )
+        
+        if arc.weight > 1:
+            arc_vec = arc.target.position - arc.source.position
+            offset = Vec2(arc_vec.unit.y, -arc_vec.unit.x)*PetriNet.PLACE_RADIUS/2
+            text_pos = (src_point + trgt_point)/2 + offset
+            self.create_text(text_pos.x,
+                             text_pos.y,
+                             tags = tags + ('label',),
+                             text = str(arc.weight)
+                             )
         
         
     def _find_intersection(self, t, vec):
