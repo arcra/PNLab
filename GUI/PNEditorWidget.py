@@ -56,7 +56,7 @@ class PNEditor(Tkinter.Canvas):
                 raise Exception('The PetriNet name cannot be an empty string.')
             self._petri_net = PetriNet(petri_net_name)
         
-        Tkinter.Canvas.__init__(self, *args, **kwargs)
+        Tkinter.Canvas.__init__(self, parent, *args, **kwargs)
         
         self._canvas_menu = Tkinter.Menu(self, tearoff = 0)
         self._canvas_menu.add_command(label = 'Add Action Place', command = self._create_action_place)
@@ -115,6 +115,8 @@ class PNEditor(Tkinter.Canvas):
         #UNIX/Linux:
         self.bind('<Button-4>', self._scale_up)
         self.bind('<Button-5>', self._scale_down)
+        
+        self.bind('<Configure>', self._resize)
         
         #MAC OS:
         if (self.tk.call('tk', 'windowingsystem')=='aqua'):
@@ -217,6 +219,9 @@ class PNEditor(Tkinter.Canvas):
         self._petri_net.remove_arc(source, target)
         self.delete('source_' + repr(source) + '&&' + 'target_' + repr(target))
     
+    def _resize(self, event):
+        self._draw_grid()
+    
     def _draw_petri_net(self):
         """Draws an entire PetriNet.
         
@@ -240,6 +245,9 @@ class PNEditor(Tkinter.Canvas):
     
     def _center_diagram(self, event):
         """Center all elements in the PetriNet inside the canvas current width and height."""
+        
+        if len(self._petri_net.places) + len(self._petri_net.transitions) == 0:
+            return
         
         minx = 1000000000
         maxx = -1000000000
@@ -270,8 +278,12 @@ class PNEditor(Tkinter.Canvas):
         
         w = maxx - minx
         h = maxy - miny
-        canvas_width = int(self.config()['width'][4])
-        canvas_height = int(self.config()['height'][4])
+        canvas_width = self.winfo_width()
+        canvas_height = self.winfo_height()
+        
+        if canvas_width == 1:
+            canvas_width = self.winfo_reqwidth()
+            canvas_height = self.winfo_reqheight()
         
         offset = Vec2(-minx, -miny)
         
@@ -307,9 +319,11 @@ class PNEditor(Tkinter.Canvas):
         
         self._adjust_grid_offset()
         
-        conf = self.config()
-        width = int(conf['width'][4])
-        height = int(conf['height'][4])
+        width = self.winfo_width()
+        height = self.winfo_height()
+        if width == 1:
+            width = self.winfo_reqwidth()
+            height = self.winfo_reqheight()
         
         startx = int(self._grid_offset.x - self._current_grid_size * self._current_scale)
         step = int(self._current_grid_size * self._current_scale / PNEditor._GRID_SIZE_FACTOR)
@@ -328,7 +342,7 @@ class PNEditor(Tkinter.Canvas):
         
         for y in xrange(starty, height, step):
             self.create_line(0, y, width, y, fill = '#7777FF', width = 1.4, tags='grid')
-            
+        
         self.tag_lower('grid')
     
     def _adjust_grid_offset(self):
@@ -500,7 +514,10 @@ class PNEditor(Tkinter.Canvas):
         name = self._get_place_name()
         
         #Adjust height when label is occluded
-        h = int(self.config()['height'][4])
+        #h = int(self.config()['height'][4])
+        h = self.winfo_height()
+        if h == 1:
+            h = self.winfo_reqheight()
         entry_y = self._last_point.y + (PetriNet.PLACE_LABEL_PADDING + 10)*self._current_scale + 10
         if entry_y > h:
             dif = Vec2(0.0, h - entry_y)
@@ -532,7 +549,10 @@ class PNEditor(Tkinter.Canvas):
         name = self._get_transition_name()
         
         #Adjust height when label is occluded
-        h = int(self.config()['height'][4])
+        #h = int(self.config()['height'][4])
+        h = self.winfo_height()
+        if h == 1:
+            h = self.winfo_reqheight()
         entry_y = self._last_point.y + (PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING + 10)*self._current_scale + 10
         if entry_y > h:
             #old_t.position.y -= entry_y - h
@@ -677,9 +697,7 @@ class PNEditor(Tkinter.Canvas):
         
         dialog = PositiveIntDialog('Set place capacity', 'Write a positive number for \nthe capacity of place: ' + str(p), 'Capacity', init_value = p.capacity)
         dialog.window.transient(self)
-        self._state = 'dialog'
         self.wait_window(dialog.window)
-        self._state = 'normal'
         if dialog.value_set:
             p.capacity = int(dialog.input_var.get())
     
@@ -691,9 +709,7 @@ class PNEditor(Tkinter.Canvas):
         
         dialog = NonNegativeFloatDialog("Set transition's rate", 'Write a positive decimal number for \nthe rate of transition: ' + str(t), 'Rate', init_value = t.rate)
         dialog.window.transient(self)
-        self._state = 'dialog'
         self.wait_window(dialog.window)
-        self._state = 'normal'
         if dialog.value_set:
             t.rate = float(dialog.input_var.get())
     
@@ -705,9 +721,7 @@ class PNEditor(Tkinter.Canvas):
         
         dialog = PositiveIntDialog("Set transition's priority", 'Write a positive integer for \nthe priority of transition: ' + str(t), 'Priority', init_value = t.priority)
         dialog.window.transient(self)
-        self._state = 'dialog'
         self.wait_window(dialog.window)
-        self._state = 'normal'
         if dialog.value_set:
             t.priority = int(dialog.input_var.get())
     
@@ -739,9 +753,7 @@ class PNEditor(Tkinter.Canvas):
             
         dialog = PositiveIntDialog("Set arc's weight", 'Write a positive integer for \nthe weight of arc: ' + str(arc), 'Weight', init_value = arc.weight)
         dialog.window.transient(self)
-        self._state = 'dialog'
         self.wait_window(dialog.window)
-        self._state = 'normal'
         if dialog.value_set:
             arc.weight = int(dialog.input_var.get())
             self._draw_arc(arc)
@@ -849,7 +861,10 @@ class PNEditor(Tkinter.Canvas):
         """Creates a Place object, draws it and sets the label entry for entering the name."""
         
         #Adjust height when label is occluded
-        h = int(self.config()['height'][4])
+        #h = int(self.config()['height'][4])
+        h = self.winfo_height()
+        if h == 1:
+            h = self.winfo_reqheight()
         entry_y = self._last_point.y + (PetriNet.PLACE_LABEL_PADDING + 10)*self._current_scale + 10
         if entry_y > h:
             dif = Vec2(0.0, h - entry_y)
@@ -885,7 +900,10 @@ class PNEditor(Tkinter.Canvas):
         """Creates a Transition object, draws it and sets the label entry for entering the name."""
         
         #Adjust height when label is occluded
-        h = int(self.config()['height'][4])
+        #h = int(self.config()['height'][4])
+        h = self.winfo_height()
+        if h == 1:
+            h = self.winfo_reqheight()
         entry_y = self._last_point.y + (PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING + 10)*self._current_scale + 10
         if entry_y > h:
             dif = Vec2(0.0, h - entry_y)

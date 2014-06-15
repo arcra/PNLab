@@ -22,7 +22,7 @@ class _InputDialog(object):
         self.regex = regex
         self.error_message = error_message
         
-        self.window = tk.Toplevel(takefocus = True)
+        self.window = tk.Toplevel()#takefocus = True)
         self.window.title(title)
         
         self.window.bind('<KeyPress-Escape>', self.cancel_callback)
@@ -53,6 +53,9 @@ class _InputDialog(object):
         
         self.cancel_button.grid(row = 0, column = 0)
         self.ok_button.grid(row = 0, column = 1)
+        
+        self.window.grab_set()
+        self.window.focus_set()
         
     def cancel_callback(self, event = None):
         self.window.destroy()

@@ -20,6 +20,9 @@ class testWindow(object):
         super(testWindow, self).__init__()
         self.root = Tkinter.Tk()
         self.root.wm_title('PetriNet Lab - Test window')
+        self.root.rowconfigure(0, weight = 1)
+        self.root.columnconfigure(0, weight = 1)
+        
         self.pn = PetriNet(name = 'test')
         p1 = Place('myAction', PlaceTypes.ACTION, Vec2(150, 250))
         t = Transition('transition1', TransitionTypes.IMMEDIATE, Vec2(250, 250))
@@ -32,7 +35,7 @@ class testWindow(object):
     
         self.pne = PNEditor(self.root, width=600, height=400, grid = True, PetriNet = self.pn)
         self.pne.bind('<Motion>', self.cursor_callback)
-        self.pne.grid(row = 0, column = 0)
+        self.pne.grid(row = 0, column = 0, sticky = Tkinter.NSEW)
         
         self.buttons_frame = Tkinter.Frame(self.root, height = 50)
         self.buttons_frame.grid(row = 1, column = 0)
