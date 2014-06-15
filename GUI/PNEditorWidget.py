@@ -131,6 +131,10 @@ class PNEditor(Tkinter.Canvas):
         """Read-only propery. Deepcopy of the petri net object."""
         return deepcopy(self._petri_net)
     
+    @property
+    def name(self):
+        return self._petri_net.name
+    
     def disable(self):
         self._state = 'disabled'
     

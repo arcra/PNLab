@@ -9,6 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import Tkinter as tk
 import ttk
+from TabManager import TabManager
 
 from PNEditorWidget import PNEditor
 
@@ -42,21 +43,7 @@ class PNLab(object):
         self.workspace_frame.rowconfigure(0, weight = 1)
         self.workspace_frame.columnconfigure(0, weight = 1)
         
-        '''
-        ###############
-        # PANED WINDOW (RESIZABLE)
-        ###############
-        self.paned_window = ttk.Panedwindow(self.root, orient = tk.HORIZONTAL)
-        self.paned_window.grid(row = 0, column = 0, sticky = tk.NSEW)
-        
-        self.project_frame = tk.Frame(self.paned_window, width = 250)
-        self.workspace_frame = tk.Frame(self.paned_window, width = 600, height = 600)
-        
-        self.paned_window.add(self.project_frame)
-        self.paned_window.add(self.workspace_frame)
-        '''
-        
-        self.project_tree = ttk.Treeview(self.project_frame)#, height = 29)
+        self.project_tree = ttk.Treeview(self.project_frame, height = 29)
         self.project_tree.column('#0', minwidth = 30, stretch = True)
         ysb = ttk.Scrollbar(self.project_frame, orient='vertical', command=self.project_tree.yview)
         xsb = ttk.Scrollbar(self.project_frame, orient='horizontal', command=self.project_tree.xview)
@@ -68,20 +55,16 @@ class PNLab(object):
         xsb.grid(row = 1, column = 0, sticky = tk.EW)
         
         
-        self.notebook = ttk.Notebook(self.workspace_frame,
+        self.notebook = TabManager(self.workspace_frame,
                                      width = PNLab.WORKSPACE_WIDTH,
                                      height = PNLab.WORKSPACE_HEIGHT)
         
-        pne1 = PNEditor(self.workspace_frame,
-                            name = 'empty',
-                            width = PNLab.WORKSPACE_WIDTH,
-                            height = PNLab.WORKSPACE_HEIGHT)
-        pne2 = PNEditor(self.workspace_frame,
-                            name = 'test',
-                            width = PNLab.WORKSPACE_WIDTH,
-                            height = PNLab.WORKSPACE_HEIGHT)
-        self.notebook.add(pne1, text = pne1.petri_net.name)
-        self.notebook.add(pne2, text = pne2.petri_net.name)
+        pne1 = PNEditor(self.notebook, name = 'empty')
+        pne2 = PNEditor(self.notebook, name = 'test')
+        
+        self.notebook.add(pne1, text = pne1.name)
+        self.notebook.add(pne2, text = pne2.name)
+        
         self.notebook.grid(row = 0, column = 0, sticky = tk.NSEW)
         
 
