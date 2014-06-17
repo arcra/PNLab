@@ -625,7 +625,7 @@ class PetriNet(object):
     
     PNML_XMLNS = 'http://www.pnml.org/version-2009/grammar/pnml'
     
-    def __init__(self, name, net = None):
+    def __init__(self, name, _net = None):
         """Petri Net Class' constuctor."""
         
         super(PetriNet, self).__init__()
@@ -641,23 +641,23 @@ class PetriNet(object):
         root_el = ET.Element('pnml', {'xmlns': PetriNet.PNML_XMLNS})
         self._tree = ET.ElementTree(root_el)
         page = None
-        if net is not None:
-            root_el.append(net)
+        if _net is not None:
+            root_el.append(_net)
             try:
-                self.scale = float(net.find('toolspecific[@tool="PNLab"]/scale/text').text)
+                self.scale = float(_net.find('toolspecific[@tool="PNLab"]/scale/text').text)
             except:
                 pass
-            page = net.find('page')
+            page = _net.find('page')
         else:
-            net = ET.SubElement(root_el, 'net', {'id': name,
+            _net = ET.SubElement(root_el, 'net', {'id': name,
                                            'type': 'http://www.pnml.org/version-2009/grammar/ptnet'
                                            })
         
-        tmp = _get_treeElement(net, 'name')
+        tmp = _get_treeElement(_net, 'name')
         tmp = _get_treeElement(tmp)
         tmp.text = name
         if page is None:
-            ET.SubElement(net, 'page', {'id': 'PNLab_top_lvl'})
+            ET.SubElement(_net, 'page', {'id': 'PNLab_top_lvl'})
         
     
     def add_place(self, p, overwrite = False):

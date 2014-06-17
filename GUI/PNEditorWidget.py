@@ -24,6 +24,7 @@ class PNEditor(Tkinter.Canvas):
     _GRID_SIZE_FACTOR = 3
     
     _MARKING_REGEX = re.compile('^[0-9]+$')
+    _NAME_REGEX = re.compile('^[a-zA-Z0-9_-][a-zA-Z0-9_ -]*$')
     _TOKEN_RADIUS = 3
     
     def __init__(self, parent, *args, **kwargs):
@@ -583,6 +584,7 @@ class PNEditor(Tkinter.Canvas):
         """Menu callback to connect clicked place to a transition."""
         self._hide_menu()
         self._state = 'connecting_place'
+        self.grab_set()
         self.itemconfig('place', state = Tkinter.DISABLED)
         self.itemconfig('transition&&!label', outline = '#FFFF00', width = 5)
         self._connecting_place_fn_id = self.bind('<Motion>', self._connecting_place, '+')
@@ -627,6 +629,7 @@ class PNEditor(Tkinter.Canvas):
         """Menu callback to connect clicked transition to a place."""
         self._hide_menu()
         self._state = 'connecting_transition'
+        self.grab_set()
         self.itemconfig('transition', state = Tkinter.DISABLED)
         self.itemconfig('place&&!label&&!token', outline = '#FFFF00', width = 5)
         self._connecting_transition_fn_id = self.bind('<Motion>', self._connecting_transition, '+')
@@ -1046,10 +1049,10 @@ class PNEditor(Tkinter.Canvas):
         """Callback factory function for the <KeyPress-Return> event of the 'create place' entry widget."""
         def txtboxCallback(event):
             txt = txtbox.get()
-            if not (txt[:2] == p.type[0] + '.' and len(txt) > 2):
+            if not (txt[:2] == p.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
                 msg = ('A place name must begin with the first letter of its type and a dot, ' +
                     'followed by a non-empty string, preferably composed of only ' +
-                    'alphanumeric characters, and possibly dashes or underscores. \
+                    'alphanumeric characters, dashes or underscores, and possibly spaces. \
                      \
                     Examples: a.my_Action, t.task1')
                 tkMessageBox.showerror('Invalid Name', msg)
@@ -1075,11 +1078,11 @@ class PNEditor(Tkinter.Canvas):
         """Callback factory function for the <KeyPress-Return> event of the 'create transition' entry widget."""
         def txtboxCallback(event):
             txt = txtbox.get()
-            if not (txt[:2] == t.type[0] + '.' and len(txt) > 2):
+            if not (txt[:2] == t.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
                 msg = ("A transition name must begin with an 'i' and a dot if it's an immediate transition " +
                        "or an 's' and a dot if it's a timed_stochastic transition, " + 
                        "followed by a non-empty string, preferably composed of only " +
-                       "alphanumeric characters, and possibly dashes or underscores. \
+                       "alphanumeric characters, dashes or underscores, and possibly spaces. \
                        \
                        Example: i.transition1, s.t-2")
                 tkMessageBox.showerror('Invalid Name', msg)
@@ -1169,10 +1172,10 @@ class PNEditor(Tkinter.Canvas):
         """Callback factory function for the <KeyPress-Return> event of the 'rename place' entry widget."""
         def txtboxCallback(event):
             txt = txtbox.get()
-            if not (txt[:2] == p.type[0] + '.' and len(txt) > 2):
+            if not (txt[:2] == p.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
                 msg = ('A place name must begin with the first letter of its type and a dot, ' +
                     'followed by a non-empty string, preferably composed of only ' +
-                    'alphanumeric characters, and possibly dashes or underscores. \
+                    'alphanumeric characters, dashes or underscores, and possibly spaces. \
                      \
                     Examples: a.my_Action, t.task1')
                 tkMessageBox.showerror('Invalid Name', msg)
@@ -1205,11 +1208,11 @@ class PNEditor(Tkinter.Canvas):
         """Callback factory function for the <KeyPress-Return> event of the 'rename transition' entry widget."""
         def txtboxCallback(event):
             txt = txtbox.get()
-            if not (txt[:2] == t.type[0] + '.' and len(txt) > 2):
+            if not (txt[:2] == t.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
                 msg = ("A transition name must begin with an 'i' and a dot if it's an immediate transition " +
                        "or an 's' and a dot if it's a timed_stochastic transition, " + 
                        "followed by a non-empty string, preferably composed of only " +
-                       "alphanumeric characters, and possibly dashes or underscores. \
+                       "alphanumeric characters, dashes or underscores, and possibly spaces. \
                        \
                        Example: i.transition1, s.t-2")
                 tkMessageBox.showerror('Invalid Name', msg)
@@ -1453,8 +1456,12 @@ class PNEditor(Tkinter.Canvas):
             self._set_anchor(event)
             return
         
+        if event.x < 0 or event.y < 0:
+            return
+        
         if self._state == 'connecting_place':
             self._state = 'normal'
+            self.grab_release()
             self.itemconfig('place', state = Tkinter.NORMAL)
             self.itemconfig('transition&&' + TransitionTypes.IMMEDIATE + '&&!label', outline = PetriNet.TRANSITION_CONFIG[TransitionTypes.IMMEDIATE]['outline'], width = PetriNet.LINE_WIDTH)
             self.itemconfig('transition&&' + TransitionTypes.TIMED_STOCHASTIC + '&&!label', outline = PetriNet.TRANSITION_CONFIG[TransitionTypes.TIMED_STOCHASTIC]['outline'], width = PetriNet.LINE_WIDTH)
@@ -1470,6 +1477,7 @@ class PNEditor(Tkinter.Canvas):
         
         if self._state == 'connecting_transition':
             self._state = 'normal'
+            self.grab_release()
             self.itemconfig('transition', state = Tkinter.NORMAL)
             self.itemconfig('place&&' + PlaceTypes.ACTION + '&&!label&&!token', outline = PetriNet.PLACE_CONFIG[PlaceTypes.ACTION]['outline'], width = PetriNet.LINE_WIDTH)
             self.itemconfig('place&&' + PlaceTypes.PREDICATE + '&&!label&&!token', outline = PetriNet.PLACE_CONFIG[PlaceTypes.PREDICATE]['outline'], width = PetriNet.LINE_WIDTH)

@@ -96,8 +96,7 @@ class testWindow(object):
                                                   )
         if not filename:
             return
-        self.pne.petri_net.to_pnml_file(filename)
-        return
+        
         try:
             self.pne.petri_net.to_pnml_file(filename)
         except Exception as e:

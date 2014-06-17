@@ -20,7 +20,6 @@ class TabManager(ttk.Notebook):
         _img_active_path = kwargs.pop('img_active', os.path.join(_img_dir, 'close_active.gif'))
         _img_pressed_path = kwargs.pop('img_pressed', os.path.join(_img_dir, 'close_pressed.gif'))
         
-        #super(TabManager, self).__init__(parent, *args, **kwargs)
         ttk.Notebook.__init__(self, parent, *args, **kwargs)
         
         self._img_close = tk.PhotoImage("img_close", file = _img_close_path)
@@ -33,29 +32,29 @@ class TabManager(ttk.Notebook):
 
         style.element_create("close", "image", "img_close",
             ("active", "pressed", "!disabled", "img_closepressed"),
-            ("active", "!disabled", "img_closeactive"), border=8, sticky='')
+            ("active", "!disabled", "img_closeactive"), border = 8, sticky='')
 
-        style.layout("ButtonNotebook", [("ButtonNotebook.client", {"sticky": "nswe"})])
-        style.layout("ButtonNotebook.Tab", [
-            ("ButtonNotebook.tab", {"sticky": "nswe", "children":
-                [("ButtonNotebook.padding", {"side": "top", "sticky": "nswe",
+        style.layout("TabManager.TNotebook", [("ButtonNotebook.client", {"sticky": "nswe"})])
+        style.layout("TabManager.TNotebook.Tab", [
+            ("TabManager.TNotebook.tab", {"sticky": "nswe", "children":
+                [("TabManager.TNotebook.padding", {"side": "top", "sticky": "nswe",
                                              "children":
-                    [("ButtonNotebook.focus", {"side": "top", "sticky": "nswe",
+                    [("TabManager.TNotebook.focus", {"side": "top", "sticky": "nswe",
                                                "children":
-                        [("ButtonNotebook.label", {"side": "left", "sticky": ''}),
-                         ("ButtonNotebook.close", {"side": "left", "sticky": ''})]
+                        [("TabManager.TNotebook.label", {"side": "left", "sticky": ''}),
+                         ("TabManager.TNotebook.padding", {"side": "left", "sticky": ''}),
+                         ("TabManager.TNotebook.close", {"side": "right", "sticky": 'e'})]
                     })]
                 })]
             })]
         )
         
-        self.config(style = "ButtonNotebook")
+        self.config(style = "TabManager.TNotebook")
         
         self.bind_class("TNotebook", "<ButtonPress-1>", self.btn_press, True)
         self.bind_class("TNotebook", "<ButtonRelease-1>", self.btn_release)
         
         self.pressed_index = None
-        
 
     def btn_press(self, event):
         x, y = event.x, event.y

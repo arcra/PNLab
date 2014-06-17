@@ -13,10 +13,10 @@ _NON_NEGATIVE_INT_REGEX = re.compile('[0-9]+$')
 _FLOAT_REGEX = re.compile('^-?[0-9]+(\.[0-9]+)?$')
 _POSITIVE_FLOAT_REGEX = re.compile('^[0-9]+(\.[0-9]+)?$')
 
-class _InputDialog(object):
+class InputDialog(object):
     
-    def __init__(self, title, text, label, regex, value, error_message):
-        super(_InputDialog, self).__init__()
+    def __init__(self, title, text, label, regex = re.compile('^[a-zA-Z0-9_-][a-zA-Z0-9_ -]*$'), value = '', error_message = 'Please input a non-empty string, preferably composed of only alphanumeric characters, dashes, underscores, and possibly spaces.', entry_length = 10):
+        super(InputDialog, self).__init__()
         
         self.value_set = False
         self.regex = regex
@@ -36,7 +36,7 @@ class _InputDialog(object):
         
         self.input_var = tk.StringVar()
         self.input_label = tk.Label(self.input_frame, text = label + ': ')
-        self.input_entry = tk.Entry(self.input_frame, width = 10, textvariable = self.input_var)
+        self.input_entry = tk.Entry(self.input_frame, width = entry_length, textvariable = self.input_var)
         self.input_var.set(value)
         self.input_entry.selection_range(0, tk.END)
         self.input_entry.focus_set()
@@ -68,19 +68,19 @@ class _InputDialog(object):
         self.window.destroy()
     
 def IntDialog(title, text, label, init_value = 0):
-    return _InputDialog(title, text, label, _INT_REGEX, str(init_value), 'Please enter a valid integer.')
+    return InputDialog(title, text, label, _INT_REGEX, str(init_value), 'Please enter a valid integer.')
 
 def PositiveIntDialog(title, text, label, init_value = 1):
-    return _InputDialog(title, text, label, _POSITIVE_INT_REGEX, str(init_value), 'Please enter a positive integer (greater than zero).')
+    return InputDialog(title, text, label, _POSITIVE_INT_REGEX, str(init_value), 'Please enter a positive integer (greater than zero).')
 
 def NonNegativeIntDialog(title, text, label, init_value = 0):
-    return _InputDialog(title, text, label, _NON_NEGATIVE_INT_REGEX, str(init_value), 'Please enter a non-negative integer.')
+    return InputDialog(title, text, label, _NON_NEGATIVE_INT_REGEX, str(init_value), 'Please enter a non-negative integer.')
 
 def FloatDialog(title, text, label, init_value = 0.0):
-    return _InputDialog(title, text, label, _FLOAT_REGEX, str(init_value), 'Please enter a valid decimal number.')
+    return InputDialog(title, text, label, _FLOAT_REGEX, str(init_value), 'Please enter a valid decimal number.')
 
 def NonNegativeFloatDialog(title, text, label, init_value = 0.0):
-    return _InputDialog(title, text, label, _POSITIVE_FLOAT_REGEX, str(init_value), 'Please enter a valid positive decimal number.')
+    return InputDialog(title, text, label, _POSITIVE_FLOAT_REGEX, str(init_value), 'Please enter a valid positive decimal number.')
 
 if __name__ == '__main__':
     w = PositiveIntDialog('test', 'test text', 'test value', 1)
