@@ -6,15 +6,17 @@
 import sys
 import os
 from PetriNets import PetriNet
+import tkMessageBox
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import Tkinter as tk
 import ttk
-import tkMessageBox, tkFileDialog
+import tkFileDialog
+import tkFont
 
 from TabManager import TabManager
 from PNEditorWidget import PNEditor
-from InputDialogs import InputDialog
+from AuxDialogs import InputDialog, MoveDialog
 
 class PNLab(object):
     
@@ -45,8 +47,7 @@ class PNLab(object):
         self.workspace_frame.rowconfigure(0, weight = 1)
         self.workspace_frame.columnconfigure(0, weight = 1)
         
-        self.project_tree = ttk.Treeview(self.project_frame, height = int((PNLab.WORKSPACE_HEIGHT - 20)/20), selectmode = 'none')
-        self.project_tree.column('#0', minwidth = PNLab.EXPLORER_WIDTH + 30, stretch = True)
+        self.project_tree = ttk.Treeview(self.project_frame, height = int((PNLab.WORKSPACE_HEIGHT - 20)/20), selectmode = 'browse')
         self.project_tree.heading('#0', text='Project Explorer', anchor=tk.W)
         self.project_tree.grid(row = 0, column = 0, sticky = tk.NSEW)
         
@@ -57,15 +58,14 @@ class PNLab(object):
         xsb.grid(row = 1, column = 0, sticky = tk.EW)
         
         self.folder_img = tk.PhotoImage('folder_img', file = os.path.join(os.path.dirname(__file__), 'img', 'TreeView_Folder.gif'))
-        
+        self.task_img = tk.PhotoImage('task_img', file = os.path.join(os.path.dirname(__file__), 'img', 'doc.gif'))
         self.project_tree.tag_configure('folder', image = self.folder_img)
-        self.project_tree.insert('', 'end', 'Tasks', text = 'Tasks/', tags = ['folder'], open = True)
-        
+        self.project_tree.tag_configure('task', image = self.task_img)
+        self.project_tree.insert('', 'end', 'Tasks/', text = 'Tasks/', tags = ['folder'], open = True)
         
         self.tab_manager = TabManager(self.workspace_frame,
                                      width = PNLab.WORKSPACE_WIDTH,
                                      height = PNLab.WORKSPACE_HEIGHT)
-        
         self.tab_manager.grid(row = 0, column = 0, sticky = tk.NSEW)
         
         
@@ -76,9 +76,9 @@ class PNLab(object):
         self.folder_menu.add_command(label = 'Add Task', command = self.create_task)
         self.folder_menu.add_command(label = 'Add Folder', command = self.create_folder)
         self.folder_menu.add_command(label = 'Import from PNML', command = self.import_from_PNML)
-        self.folder_menu.add_command(label = 'Rename')
-        self.folder_menu.add_command(label = 'Move')
-        self.folder_menu.add_command(label = 'Delete')
+        self.folder_menu.add_command(label = 'Rename', command = self.rename_folder)
+        self.folder_menu.add_command(label = 'Move', command = self.move_folder)
+        self.folder_menu.add_command(label = 'Delete', command = self.delete_folder)
         
         self.task_menu = tk.Menu(self.root, tearoff = 0)
         self.task_menu.add_command(label = 'Open', command = self.open_petri_net)
@@ -105,11 +105,11 @@ class PNLab(object):
         
         
         self.project_tree.tag_bind('task', '<Double-1>', self.open_callback)
-        self.root.bind('<Button-1>', self.hide_menu)
+        self.root.bind('<Button-1>', self._hide_menu)
     
     def popup_folder_menu(self, event):
         self.clicked_element = self.project_tree.identify('item', event.x, event.y)
-        if self.clicked_element == 'Tasks':
+        if self.clicked_element == 'Tasks/':
             self.folder_menu.entryconfigure(3, state = 'disabled')
             self.folder_menu.entryconfigure(4, state = 'disabled')
             self.folder_menu.entryconfigure(5, state = 'disabled')
@@ -126,13 +126,29 @@ class PNLab(object):
         self.popped_up_menu = self.task_menu
         self.task_menu.post(event.x_root, event.y_root)
     
-    def hide_menu(self, event):
+    def _hide_menu(self, event):
         """Hides a popped-up menu."""
         if self.popped_up_menu:
             self.popped_up_menu.unpost()
             self.popped_up_menu = None
             return True
         return False
+    
+    def _adjust_width(self, text, item_id):
+        
+        font = tkFont.Font()
+        measure = font.measure(text) + self._find_depth(item_id)*20
+        current_width = self.project_tree.column('#0', 'minwidth')
+        if measure > current_width:
+            self.project_tree.column('#0', minwidth = measure, stretch = True)
+            
+    def _find_depth(self, item):
+        
+        count = 1
+        while item != 'Tasks/':
+            item = self.project_tree.parent(item)
+            count += 1
+        return count
     
     def create_folder(self):
         dialog = InputDialog(
@@ -145,7 +161,9 @@ class PNLab(object):
         if not dialog.value_set:
             return
         name = dialog.input_var.get()
-        self.project_tree.insert(self.clicked_element, 'end', self.clicked_element + '/' + name.replace(' ', '_'), text = name + '/', tags = ['folder'], open = True)
+        item_id = self.clicked_element + name.replace(' ', '_') + '/'
+        self.project_tree.insert(self.clicked_element, 'end', item_id, text = name + '/', tags = ['folder'], open = True)
+        self._adjust_width(name + '/', item_id)
     
     def create_task(self):
         dialog = InputDialog('Task name',
@@ -157,16 +175,17 @@ class PNLab(object):
         if not dialog.value_set:
             return
         name = dialog.input_var.get()
-        pn_id = self.clicked_element + '/' + name.replace(' ', '_')
+        item_id = self.clicked_element + name.replace(' ', '_')
         
         try:
-            self.project_tree.insert(self.clicked_element, 'end', pn_id, text = name, tags = ['task'])
+            self.project_tree.insert(self.clicked_element, 'end', item_id, text = name, tags = ['task'])
+            self._adjust_width(name, item_id)
         except Exception as e:
             tkMessageBox.showerror('ERROR', 'Task could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
             return
         
         pne = PNEditor(self.tab_manager, name = name)
-        self.petri_nets[pn_id] = pne
+        self.petri_nets[item_id] = pne
         self.tab_manager.add(pne, text = pne.name)
         self.tab_manager.select(pne)
     
@@ -209,17 +228,42 @@ class PNLab(object):
             tkMessageBox.showerror('Error loading PetriNet.', 'An error occurred while loading the PetriNet object.\n\n' + str(e))
         
         name = pn.name
-        pn_id = self.clicked_element + '/' + name.replace(' ', '_')
+        item_id = self.clicked_element + name.replace(' ', '_')
         
         try:
-            self.project_tree.insert(self.clicked_element, 'end', pn_id, text = name, tags = ['task'])
+            self.project_tree.insert(self.clicked_element, 'end', item_id, text = name, tags = ['task'])
+            self._adjust_width(name, item_id)
         except Exception as e:
             tkMessageBox.showerror('ERROR', 'Task could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
             return
         pne = PNEditor(self.tab_manager, PetriNet = pn)
-        self.petri_nets[pn_id] = pne
+        self.petri_nets[item_id] = pne
         self.tab_manager.add(pne, text = pne.name)
         self.tab_manager.select(pne)
+    
+    def rename_folder(self):
+        old_name = self.project_tree.item(self.clicked_element, 'text')
+        dialog = InputDialog('Folder name',
+                             'Please input a folder name, preferably composed only of alphabetic characters.',
+                             'Name',
+                             value = old_name,
+                             entry_length = 25)
+        dialog.window.transient(self.root)
+        self.root.wait_window(dialog.window)
+        if not dialog.value_set:
+            return
+        name = dialog.input_var.get()
+        parent = self.project_tree.parent(self.clicked_element)
+        
+        self._move_folder(self.clicked_element, parent, parent, old_name, name)
+    
+    def move_folder(self):
+        
+        destination = self._get_destination(self.clicked_element)
+        name = self.project_tree.item(self.clicked_element, 'text')
+        old_parent = self.project_tree.parent(self.clicked_element)
+        if destination:
+            self._move_folder(self.clicked_element, old_parent, destination, name, name)
     
     def rename_task(self):
         old_name = self.project_tree.item(self.clicked_element, 'text')
@@ -234,97 +278,101 @@ class PNLab(object):
             return
         name = dialog.input_var.get()
         parent = self.project_tree.parent(self.clicked_element)
-        pne = self.petri_nets.pop(self.clicked_element)
-        pn_id = parent + '/' + name.replace(' ', '_')
+        
+        self._move_task(self.clicked_element, parent, parent, old_name, name)
+    
+    def move_task(self):
+        
+        destination = self._get_destination(self.clicked_element)
+        name = self.project_tree.item(self.clicked_element, 'text')
+        old_parent = self.project_tree.parent(self.clicked_element)
+        if destination:
+            self._move_task(self.clicked_element, old_parent, destination, name, name)
+    
+    def _get_destination(self, item):
+        
+        dialog = MoveDialog(self.project_tree, item, 'Tasks/')
+        
+        dialog.window.transient(self.root)
+        self.root.wait_window(dialog.window)
+        
+        return dialog.destination
+    
+    def _move_folder(self, old_id, old_parent, parent, old_name, name):
+        item_id = parent + name.replace(' ', '_')
+        if item_id == old_id:
+            return
         try:
-            self.project_tree.delete(self.clicked_element)
-            self.project_tree.insert(parent, 'end', pn_id, text = name, tags = ['task'])
-            pne.name = name
+            self.project_tree.insert(parent, 'end', item_id, text = name, tags = ['folder'], open = True)
+            self._adjust_width(name, item_id)
         except Exception as e:
-            tkMessageBox.showerror('ERROR', 'Task could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
+            tkMessageBox.showerror('ERROR', 'Item could not be inserted in the selected node, possible duplicate name.\n\nERROR: ' + str(e))
+            return
+        
+        children_queue = list(self.project_tree.get_children(old_id))
+        while children_queue:
+            current = children_queue.pop(0)
+            item_tags = self.project_tree.item(current, 'tags')
+            current_name = self.project_tree.item(current, 'text')
+            if 'folder' in item_tags:
+                self._move_folder(current, old_id, item_id, current_name, current_name)
+            else:
+                self._move_task(current, old_id, item_id, current_name, current_name)
+        
+        self.project_tree.delete(old_id)
+    
+    def _move_task(self, old_id, old_parent, parent, old_name, name):
+        item_id = parent + name.replace(' ', '_')
+        pne = self.petri_nets.pop(old_id)
+        try:
+            self.project_tree.insert(parent, 'end', item_id, text = name, tags = ['task'])
+            self.project_tree.delete(old_id)
+            self._adjust_width(name, item_id)
+            pne.name = name
+            self.petri_nets[item_id] = pne
+        except Exception as e:
+            tkMessageBox.showerror('ERROR', 'Item could not be inserted in the selected node, possible duplicate name.\n\nERROR: ' + str(e))
             try:
-                self.project_tree.insert(parent, 'end', self.clicked_element, text = old_name, tags = ['task'])
+                self.project_tree.insert(old_parent, 'end', old_id, text = old_name, tags = ['task'])
             except:
                 pass
-            self.petri_nets[self.clicked_element] = pne
+            self.petri_nets[old_id] = pne
             return
         
         try:
             self.tab_manager.tab(pne, text = pne.name)
         except:
             pass
-        
-        self.petri_nets[pn_id] = pne
     
-    def move_task(self):
-        
-        if self.clicked_element == 'Tasks':
-            return
-        
-        window = tk.Toplevel()
-        window.title('Select target...')
-        
-        tree = ttk.Treeview(window, height = 10, selectmode = 'browse')
-        tree.column('#0', minwidth = PNLab.EXPLORER_WIDTH + 30, stretch = True)
-        tree.heading('#0', text='Move Task to...', anchor=tk.W)
-        tree.grid(row = 0, column = 0, sticky = tk.NSEW)
-        
-        ysb = ttk.Scrollbar(window, orient='vertical', command=tree.yview)
-        xsb = ttk.Scrollbar(window, orient='horizontal', command=tree.xview)
-        tree.configure(xscroll = xsb.set, yscroll = ysb.set)
-        ysb.grid(row = 0, column = 1, sticky = tk.NS)
-        xsb.grid(row = 1, column = 0, sticky = tk.EW)
-        
-        elements_queue = ['Tasks']
-        
-        while elements_queue:
-            current = elements_queue.pop()
-            element_tags = self.project_tree.item(current, 'tags')
-            if 'folder'not in element_tags:
-                continue
-            elements_queue += self.project_tree.get_children(current)
-            tree.insert(self.project_tree.parent(current),
-                        'end',
-                        current,
-                        text = self.project_tree.item(current, 'text'),
-                        tags = element_tags)
-        
-        button_frame = tk.Frame(window)
-        button_frame.grid(row = 2, column = 0, sticky = tk.N)
-        
-        def cancel_callback():
-            window.destroy()
-        
-        def ok_callback():
-            if not tree.selection():
-                tkMessageBox.showwarning('No option selected.', 'Please select a new destination before pressing ok.')
-                return
-            self.project_tree.move(self.clicked_element, tree.selection()[0], 'end')
-            window.destroy()
-        
-        window.bind('<KeyPress-Escape>', cancel_callback)
-        window.bind('<KeyPress-Return>', ok_callback)
-        
-        cancel_button = tk.Button(button_frame, text = 'Cancel', command = cancel_callback)
-        ok_button = tk.Button(button_frame, text = 'Ok', command = ok_callback)
-        
-        cancel_button.grid(row = 0, column = 0)
-        ok_button.grid(row = 0, column = 1)
-        
-        window.grab_set()
-        window.focus_set()
-        
-        window.transient(self.root)
-        self.root.wait_window(window)
-        
-    
-    def delete_task(self):
-        pne = self.petri_nets.pop(self.clicked_element, None)
+    def delete_task(self, item = None):
+        if not item:
+            item = self.clicked_element
+        pne = self.petri_nets.pop(item, None)
         try:
             self.tab_manager.forget(pne)
         except:
             pass
-        self.project_tree.delete(self.clicked_element)
+        self.project_tree.delete(item)
+    
+    def delete_folder(self, item = None):
+        
+        if not item:
+            item = self.clicked_element
+        
+        if item == 'Tasks/':
+            return
+            
+        children_queue = list(self.project_tree.get_children(item))
+        
+        while children_queue:
+            current = children_queue.pop(0)
+            item_tags = self.project_tree.item(current, 'tags')
+            if 'folder' in item_tags:
+                self.delete_folder(current)
+            else:
+                self.delete_task(current)
+        
+        self.project_tree.delete(item)
     
     def export_to_PNML(self):
         filename = tkFileDialog.asksaveasfilename(

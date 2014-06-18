@@ -4,6 +4,7 @@
 """
 import re
 import Tkinter as tk
+import ttk
 import tkMessageBox
 
 _INT_REGEX = re.compile('^(-[1-9])?[0-9]+$')
@@ -81,6 +82,68 @@ def FloatDialog(title, text, label, init_value = 0.0):
 
 def NonNegativeFloatDialog(title, text, label, init_value = 0.0):
     return InputDialog(title, text, label, _POSITIVE_FLOAT_REGEX, str(init_value), 'Please enter a valid positive decimal number.')
+
+class MoveDialog(object):
+    
+    def __init__(self, src_tree, item, root):
+        
+        self.destination = None
+        
+        self.window = tk.Toplevel()
+        self.window.title('Select target...')
+        
+        self.tree = ttk.Treeview(self.window, height = 10, selectmode = 'browse')
+        self.tree.column('#0', minwidth = src_tree.column('#0', 'minwidth'), stretch = True)
+        self.tree.heading('#0', text='Move element to...', anchor=tk.W)
+        self.tree.grid(row = 0, column = 0, sticky = tk.NSEW)
+        
+        ysb = ttk.Scrollbar(self.window, orient='vertical', command=self.tree.yview)
+        xsb = ttk.Scrollbar(self.window, orient='horizontal', command=self.tree.xview)
+        self.tree.configure(xscroll = xsb.set, yscroll = ysb.set)
+        ysb.grid(row = 0, column = 1, sticky = tk.NS)
+        xsb.grid(row = 1, column = 0, sticky = tk.EW)
+        
+        elements_queue = [root]
+        while elements_queue:
+            current = elements_queue.pop(0)
+            element_tags = src_tree.item(current, 'tags')
+            if 'folder' not in element_tags or current == item:
+                continue
+            elements_queue += src_tree.get_children(current)
+            self.tree.insert(src_tree.parent(current),
+                        'end',
+                        current,
+                        text = src_tree.item(current, 'text'),
+                        tags = element_tags,
+                        open = True)
+        
+        self.tree.tag_bind('folder', '<Double-1>', self.ok_callback)
+        
+        button_frame = tk.Frame(self.window)
+        button_frame.grid(row = 2, column = 0, sticky = tk.N)
+        
+        self.window.bind('<KeyPress-Escape>', self.cancel_callback)
+        self.window.bind('<KeyPress-Return>', self.ok_callback)
+        
+        cancel_button = tk.Button(button_frame, text = 'Cancel', command = self.cancel_callback)
+        ok_button = tk.Button(button_frame, text = 'Ok', command = self.ok_callback)
+        
+        cancel_button.grid(row = 0, column = 0)
+        ok_button.grid(row = 0, column = 1)
+        
+        self.window.grab_set()
+        self.window.focus_set()
+        
+    def cancel_callback(self, event = None):
+            self.window.destroy()
+        
+    def ok_callback(self, event = None):
+        if not self.tree.selection():
+            tkMessageBox.showwarning('No option selected.', 'Please select a new destination before pressing ok.')
+            return
+        
+        self.destination = self.tree.selection()[0]
+        self.window.destroy()
 
 if __name__ == '__main__':
     w = PositiveIntDialog('test', 'test text', 'test value', 1)

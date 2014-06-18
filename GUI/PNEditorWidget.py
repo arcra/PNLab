@@ -9,7 +9,7 @@ import tkMessageBox
 
 from copy import deepcopy
 from PetriNets import Place, PlaceTypes, Vec2, Transition, TransitionTypes, PetriNet
-from InputDialogs import PositiveIntDialog, NonNegativeFloatDialog
+from AuxDialogs import PositiveIntDialog, NonNegativeFloatDialog
 
 class PNEditor(Tkinter.Canvas):
     
