@@ -35,18 +35,32 @@ class PNLab(object):
         self.root.wm_title('PetriNet Lab')
         self.root.protocol("WM_DELETE_WINDOW", self.exit)
         #Necessary in order for the children to expand to the real size of the window if resized:
-        self.root.rowconfigure(0, weight = 1)
+        self.root.rowconfigure(1, weight = 1)
         self.root.columnconfigure(2, weight = 1)
         
+        toolbar_frame = tk.Frame(self.root)
+        toolbar_frame.grid(row = 0, column = 2, sticky = tk.E)
+        
+        mode_label = tk.Label(toolbar_frame, text = 'mode: ')
+        mode_label.grid(row = 0, column = 0, sticky = tk.E)
+        
+        self.mode_var = tk.StringVar()
+        mode_combo = ttk.Combobox(toolbar_frame,
+                                  values = ['Editor', 'Simulation', 'Execution'],
+                                  textvariable = self.mode_var,
+                                  state = 'readonly')
+        self.mode_var.set('Editor')
+        mode_combo.grid(row = 0, column = 1, sticky = tk.E)
+        
         project_frame = tk.Frame(self.root, width = PNLab.EXPLORER_WIDTH)
-        project_frame.grid(row = 0, column = 0, sticky = tk.NSEW)
+        project_frame.grid(row = 1, column = 0, sticky = tk.NSEW)
         project_frame.rowconfigure(0, weight = 1)
         
         sep = ttk.Separator(self.root, orient = tk.VERTICAL)
-        sep.grid(row = 0, column = 1, sticky = tk.NS)
+        sep.grid(row = 1, column = 1, sticky = tk.NS)
         
         workspace_frame = tk.Frame(self.root, width = PNLab.WORKSPACE_WIDTH, height = PNLab.WORKSPACE_HEIGHT)
-        workspace_frame.grid(row = 0, column = 2, sticky = tk.NSEW)
+        workspace_frame.grid(row = 1, column = 2, sticky = tk.NSEW)
         #Necessary in order for the children to expand to the real size of the window if resized:
         workspace_frame.rowconfigure(0, weight = 1)
         workspace_frame.columnconfigure(0, weight = 1)
@@ -78,15 +92,13 @@ class PNLab(object):
         menubar.add_command(label="Save As...", command = self.save_as)
         menubar.add_separator()
         menubar.add_command(label="Exit", command = self.exit, foreground = 'red', activeforeground = 'white', activebackground = 'red')
+        
         '''
-        # create a pulldown menu, and add it to the menu bar
-        filemenu = tk.Menu(menubar, tearoff=0)
-        filemenu.add_command(label="Open")
-        filemenu.add_command(label="Save")
-        filemenu.add_command(label="Save As...")
-        filemenu.add_separator()
-        filemenu.add_command(label="Exit", command = lambda : self.root.destroy())
-        menubar.add_cascade(label="File", menu=filemenu)
+        mode_menu = tk.Menu(menubar, tearoff = False)
+        mode_menu.add_command(label = 'Editing Mode')
+        mode_menu.add_command(label = 'Simulation Mode')
+        mode_menu.add_command(label = 'Execution Mode')
+        menubar.add_cascade(label = 'Set mode...', menu = mode_menu)
         '''
         
         self.root.config(menu = menubar)
@@ -167,8 +179,8 @@ class PNLab(object):
             
     def _find_depth(self, item):
         
-        count = 1
-        while item != 'Tasks/':
+        count = 0
+        while item != '':
             item = self.project_tree.parent(item)
             count += 1
         return count
