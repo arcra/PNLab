@@ -739,10 +739,10 @@ class PetriNet(object):
             return None
         p = self.places[key]
         
-        for t in p._incoming_arcs.iterkeys():
+        for t in p._incoming_arcs.keys() :
             self.remove_arc(self.transitions[t], p)
         
-        for t in p._outgoing_arcs.iterkeys():
+        for t in p._outgoing_arcs.keys():
             self.remove_arc(p, self.transitions[t])
         
         for ref in p._references:
@@ -780,10 +780,10 @@ class PetriNet(object):
             return
         t = self.transitions[key]
         
-        for p in t._incoming_arcs.iterkeys():
+        for p in t._incoming_arcs.keys():
             self.remove_arc(self.places[p], t)
         
-        for p in t._outgoing_arcs.iterkeys():
+        for p in t._outgoing_arcs.keys():
             self.remove_arc(t, self.places[p])
         
         for ref in t._references:
