@@ -12,7 +12,7 @@ import tkFileDialog
 import tkMessageBox
 
 from PetriNets import PetriNet, Place, PlaceTypes, Transition, TransitionTypes, Vec2
-from GUI.PNEditorWidget import PNEditor
+from PNEditor import PNEditor
 
 class testWindow(object):
     

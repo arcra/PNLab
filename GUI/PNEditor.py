@@ -151,6 +151,7 @@ class PNEditor(Tkinter.Canvas):
         or destroying the widget.
         '''
         self._petri_net = newPN
+        self.edited = True
         
         self._place_count = len(newPN.places)
         self._transition_count = len(newPN.transitions)
@@ -168,6 +169,8 @@ class PNEditor(Tkinter.Canvas):
         if self._petri_net.add_place(p, overwrite):
             self._draw_place(p)
             self._place_count += 1
+        
+        self.edited = True
     
     def add_transition(self, t, overwrite = False):
         """Adds a transition to the Petri Net and draws it.
@@ -180,11 +183,13 @@ class PNEditor(Tkinter.Canvas):
         if self._petri_net.add_transition(t, overwrite):
             self._draw_transition(t)
             self._transition_count += 1
+        self.edited = True
     
     def add_arc(self, source, target, weight = 1):
         """Adds an arc to the PetriNet object and draws it."""
         arc = self._petri_net.add_arc(source, target, weight)
         self._draw_arc(arc)
+        self.edited = True
     
     def remove_place(self, p):
         """Removes the place from the Petri Net.
@@ -200,6 +205,7 @@ class PNEditor(Tkinter.Canvas):
         self.delete('place_' + repr(p))
         self.delete('source_' + repr(p))
         self.delete('target_' + repr(p))
+        self.edited = True
         return p
     
     def remove_transition(self, t):
@@ -216,13 +222,14 @@ class PNEditor(Tkinter.Canvas):
         self.delete('transition_' + repr(t))
         self.delete('source_' + repr(t))
         self.delete('target_' + repr(t))
-        
+        self.edited = True
         return t
     
     def remove_arc(self, source, target):
         """Removes an arc from the PetriNet object and from the canvas widget.""" 
         self._petri_net.remove_arc(source, target)
         self.delete('source_' + repr(source) + '&&' + 'target_' + repr(target))
+        self.edited = True
     
     def _resize(self, event):
         self._draw_grid()
@@ -313,6 +320,7 @@ class PNEditor(Tkinter.Canvas):
         
         self._petri_net.scale = self._current_scale*scale_factor
         
+        self.edited = True
         self._draw_petri_net()
     
     def _draw_grid(self):
@@ -678,6 +686,8 @@ class PNEditor(Tkinter.Canvas):
         self._draw_transition(t)
         self._draw_item_arcs(t)
         
+        self.edited = True
+        
     def _set_initial_marking(self):
         """Menu callback to set the initial marking of a Place."""
         self._hide_menu()
@@ -707,6 +717,7 @@ class PNEditor(Tkinter.Canvas):
         self.wait_window(dialog.window)
         if dialog.value_set:
             p.capacity = int(dialog.input_var.get())
+            self.edited = True
     
     def _set_rate(self):
         """Menu callback to set the rate of a Transition."""
@@ -719,6 +730,7 @@ class PNEditor(Tkinter.Canvas):
         self.wait_window(dialog.window)
         if dialog.value_set:
             t.rate = float(dialog.input_var.get())
+            self.edited = True
     
     def _set_priority(self):
         """Menu callback to set the priority of a Transition."""
@@ -731,6 +743,7 @@ class PNEditor(Tkinter.Canvas):
         self.wait_window(dialog.window)
         if dialog.value_set:
             t.priority = int(dialog.input_var.get())
+            self.edited = True
     
     def _set_weight(self):
         """Menu callback to set the weight of an arc."""
@@ -764,6 +777,7 @@ class PNEditor(Tkinter.Canvas):
         if dialog.value_set:
             arc.weight = int(dialog.input_var.get())
             self._draw_arc(arc)
+            self.edited = True
     
     def _get_marking_callback(self, txtbox, txtbox_id, canvas_id, p):
         """Callback factory function for the marking entry widget."""
@@ -774,11 +788,12 @@ class PNEditor(Tkinter.Canvas):
                 tkMessageBox.showerror('Invalid Marking', msg)
                 return
             p.init_marking = int(txt)
+            self.edited = True
             self._draw_marking(canvas_id, p)
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
-            
+        
         return txtboxCallback
     
     def _draw_marking(self, canvas_id, p):
@@ -1069,6 +1084,7 @@ class PNEditor(Tkinter.Canvas):
                              text = str(new_p),
                              tags=tags )
             self._place_count += 1
+            self.edited = True
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
@@ -1103,6 +1119,7 @@ class PNEditor(Tkinter.Canvas):
                                  text = str(new_t),
                                  tags=tags )
             self._transition_count += 1
+            self.edited = True
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
@@ -1198,7 +1215,7 @@ class PNEditor(Tkinter.Canvas):
                              text = str(p),
                              tags=tags )
             self._draw_item_arcs(p)
-            
+            self.edited = True
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
@@ -1240,7 +1257,7 @@ class PNEditor(Tkinter.Canvas):
                                  text = str(t),
                                  tags=tags )
             self._draw_item_arcs(t)
-            
+            self.edited = True
             txtbox.grab_release()
             txtbox.destroy()
             self.delete(txtbox_id)
@@ -1412,6 +1429,7 @@ class PNEditor(Tkinter.Canvas):
         if self._grid:
             self._grid_offset = (e + (self._grid_offset - e)*scale_factor).int
             self._draw_grid()
+        self.edited = True
     
     def _scale_down(self, event):
         """Callback for the wheel-scroll to scale the canvas elements to look like a zoom-out."""
@@ -1432,6 +1450,7 @@ class PNEditor(Tkinter.Canvas):
         if self._grid:
             self._grid_offset = (e + (self._grid_offset - e)*scale_factor).int
             self._draw_grid()
+        self.edited = True
     
     def _scale_canvas(self, event):
         """Callback for handling the wheel-scroll event in different platforms."""
@@ -1556,7 +1575,8 @@ class PNEditor(Tkinter.Canvas):
             if self._grid:
                 self._grid_offset = (self._grid_offset + dif).int
                 self._draw_grid()
-                
+        
+        self.edited = True
         self._last_point = Vec2(event.x, event.y)
         
         
