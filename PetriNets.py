@@ -10,6 +10,7 @@ import io
 import lxml.etree as ET
 
 from utils.Vector import Vec2
+import os
 
 VERSION = '0.8'
 
@@ -944,15 +945,16 @@ class PetriNet(object):
             arc_el.getparent().remove(arc_el)
 
     @classmethod
-    def from_ElementTree(cls, et):
+    def from_ElementTree(cls, et, name = None):
         
         pnets = []
         root = et.getroot()
         for net in root.findall('net'):
-            try:
-                name = net.find('name').findtext('text')
-            except:
-                name = net.get('id')
+            if name is None:
+                try:
+                    name = net.find('name').findtext('text')
+                except:
+                    name = net.get('id')
             
             pn = PetriNet(name, net)
             
@@ -1092,8 +1094,8 @@ class PetriNet(object):
         return copy.deepcopy(self._tree)
     
     @classmethod
-    def from_pnml_file(cls, file_name):
-        et = ET.parse(file_name)
+    def from_pnml_file(cls, filename):
+        et = ET.parse(filename)
         # http://wiki.tei-c.org/index.php/Remove-Namespaces.xsl
         xslt='''<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
         <xsl:output method="xml" indent="no"/>
@@ -1120,7 +1122,15 @@ class PetriNet(object):
         xslt_doc=ET.parse(io.BytesIO(xslt))
         transform=ET.XSLT(xslt_doc)
         et=transform(et)
-        return PetriNet.from_ElementTree(et)
+        filename = os.path.basename(filename)
+        if '.pnml.xml' in filename:
+            filename = filename[:filename.rfind('.pnml.xml')]
+        elif '.pnml' in filename: 
+            filename = filename[:filename.rfind('.pnml')]
+        elif '.' in filename:
+            filename = filename[:filename.rfind('.')]
+            
+        return PetriNet.from_ElementTree(et, name = filename)
     
     def to_pnml_file(self, file_name):
         et = self.to_ElementTree()

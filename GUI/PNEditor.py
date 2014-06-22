@@ -110,6 +110,7 @@ class PNEditor(Tkinter.Canvas):
         self.bind('<B1-Motion>', self._dragCallback)
         self.bind('<ButtonRelease-1>', self._change_cursor_back)
         self.bind('<KeyPress-c>', self._center_diagram)
+        self.bind('<KeyPress-C>', self._center_diagram)
         
         #Windows and MAC OS:
         self.bind('<MouseWheel>', self._scale_canvas)
