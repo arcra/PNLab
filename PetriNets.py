@@ -38,7 +38,9 @@ class TransitionTypes(object):
     TIMED_STOCHASTIC = 'stochastic'
 
 class Node(object):
-    """PetriNets Node class, which is extended by Place and Transition Classes."""
+    """PetriNets Node class, which is extended by Place and Transition Classes.
+        NOTICE: Arc does not extend from this class.
+    """
     
     __metaclass__ = abc.ABCMeta
     

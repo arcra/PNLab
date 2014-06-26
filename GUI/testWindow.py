@@ -34,6 +34,7 @@ class testWindow(object):
         self.pn.add_arc(t, p2)
     
         self.pne = PNEditor(self.root, width=600, height=400, grid = True, PetriNet = self.pn)
+        #self.pne.disable()
         self.pne.bind('<Motion>', self.cursor_callback)
         self.pne.grid(row = 0, column = 0, sticky = Tkinter.NSEW)
         

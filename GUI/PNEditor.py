@@ -22,6 +22,8 @@ class PNEditor(Tkinter.Canvas):
     
     _GRID_SIZE = 100.0
     _GRID_SIZE_FACTOR = 3
+    SMALL_GRID_COLOR = '#BBBBFF'
+    BIG_GRID_COLOR = '#7777FF'
     
     _MARKING_REGEX = re.compile('^[0-9]+$')
     _NAME_REGEX = re.compile('^[a-zA-Z0-9_-][a-zA-Z0-9_ -]*$')
@@ -139,9 +141,14 @@ class PNEditor(Tkinter.Canvas):
     
     def disable(self):
         self._state = 'disabled'
+        self.config(background = 'gray')
+        PNEditor.SMALL_GRID_COLOR = '#DDDDDD'
+        PNEditor.BIG_GRID_COLOR = '#FFFFFF'
     
     def enable(self):
         self._state = 'normal'
+        PNEditor.SMALL_GRID_COLOR = '#BBBBFF'
+        PNEditor.BIG_GRID_COLOR = '#7777FF'
     
     def set_petri_net(self, newPN):
         """Loads a new Petri Net object to be viewed/edited."""
@@ -259,6 +266,9 @@ class PNEditor(Tkinter.Canvas):
     def _center_diagram(self, event):
         """Center all elements in the PetriNet inside the canvas current width and height."""
         
+        if self._state != 'normal':
+            return
+        
         if len(self._petri_net.places) + len(self._petri_net.transitions) == 0:
             return
         
@@ -343,19 +353,19 @@ class PNEditor(Tkinter.Canvas):
         step = int(self._current_grid_size * self._current_scale / PNEditor._GRID_SIZE_FACTOR)
         
         for x in xrange(startx, width, step):
-            self.create_line(x, 0, x, height, fill = '#BBBBFF', tags='grid')
+            self.create_line(x, 0, x, height, fill = PNEditor.SMALL_GRID_COLOR, tags='grid')
         
         starty = int(self._grid_offset.y - self._current_grid_size * self._current_scale)
         for y in xrange(starty, height, step):
-            self.create_line(0, y, width, y, fill = '#BBBBFF', tags='grid')
+            self.create_line(0, y, width, y, fill = PNEditor.SMALL_GRID_COLOR, tags='grid')
         
         step *= PNEditor._GRID_SIZE_FACTOR
         
         for x in xrange(startx, width, step):
-            self.create_line(x, 0, x, height, fill = '#7777FF', width = 1.4, tags='grid')
+            self.create_line(x, 0, x, height, fill = PNEditor.BIG_GRID_COLOR, width = 1.4, tags='grid')
         
         for y in xrange(starty, height, step):
-            self.create_line(0, y, width, y, fill = '#7777FF', width = 1.4, tags='grid')
+            self.create_line(0, y, width, y, fill = PNEditor.BIG_GRID_COLOR, width = 1.4, tags='grid')
         
         self.tag_lower('grid')
     
