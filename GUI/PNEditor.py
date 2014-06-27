@@ -120,6 +120,9 @@ class PNEditor(Tkinter.Canvas):
         self.bind('<KeyPress-z>', self._undo)
         self.bind('<KeyPress-y>', self._redo)
         
+        ##########################################
+        #    BINDING MOUSE WHEEL SCROLL
+        ##########################################
         #Windows and MAC OS:
         self.bind('<MouseWheel>', self._scale_canvas)
         #UNIX/Linux:
@@ -128,6 +131,9 @@ class PNEditor(Tkinter.Canvas):
         
         self.bind('<Configure>', self._resize)
         
+        ##########################################
+        #    BINDING RIGHT CLICK
+        ##########################################
         #MAC OS:
         if (self.tk.call('tk', 'windowingsystem')=='aqua'):
             self.bind('<2>', self._popup_menu)
@@ -136,7 +142,27 @@ class PNEditor(Tkinter.Canvas):
         else:
             self.bind('<3>', self._popup_menu)
         
-        self.bind('<Double-1>', self._test)
+        #self.bind('<Double-1>', self._test)
+        self.bind('<Double-1>', self._set_connecting)
+    
+    def _set_connecting(self, event):
+        
+        self.focus_set()
+        
+        if self._state != 'normal':
+            return
+        
+        item = self._get_current_item(event)
+        
+        self._last_point = Vec2(event.x, event.y)
+        self._last_clicked_id = item
+        
+        if item:
+            tags = self.gettags(item)
+            if 'place' in tags:
+                self._connect_place_to()
+            elif 'transition' in tags:
+                self._connect_transition_to()
     
     def _test(self, event):
         item = self._get_current_item(event)
