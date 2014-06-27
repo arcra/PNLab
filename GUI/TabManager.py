@@ -27,6 +27,8 @@ class TabManager(ttk.Notebook):
                            file = _img_active_path)
         self._img_pressed = tk.PhotoImage("img_closepressed",
                            file = _img_pressed_path)
+        
+        self.widget_dict = {}
 
         style = ttk.Style()
 
@@ -75,11 +77,18 @@ class TabManager(ttk.Notebook):
         index = self.index("@%d,%d" % (x, y))
     
         if "close" in elem and self.pressed_index == index:
+            del self.widget_dict[self.tabs()[index]]
             self.forget(index)
             self.event_generate("<<NotebookClosedTab>>")
     
         self.state(["!pressed"])
         self.pressed_index = None
+    
+    def add(self, widget, **kwargs):
+        
+        ttk.Notebook.add(self, widget, **kwargs)
+        self.select(widget)
+        self.widget_dict[self.select()] = widget
 
 if __name__ == '__main__':
     root = tk.Tk()

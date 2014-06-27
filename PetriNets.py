@@ -905,6 +905,7 @@ class PetriNet(object):
         source and target should  be instances of the Place and Transition classes,
         one of each.
         """
+        
         if not self._can_connect(source, target):
             raise Exception('Arcs should go either from a place to a transition or vice versa and they should exist in the PN.')
         

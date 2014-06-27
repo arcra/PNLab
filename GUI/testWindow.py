@@ -55,7 +55,10 @@ class testWindow(object):
         
         self.cursor_var = Tkinter.StringVar()
         self.status_label = Tkinter.Label(self.status_bar, textvariable = self.cursor_var)
-        self.status_label.grid()
+        self.status_label.grid(row = 0, column = 0, sticky = Tkinter.W)
+        
+        self.action_label = Tkinter.Label(self.status_bar, textvariable = self.pne.status_var)
+        self.action_label.grid(row = 0, column = 1, sticky = Tkinter.W)
         
     
     def cursor_callback(self, event):

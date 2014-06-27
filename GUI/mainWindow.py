@@ -65,6 +65,12 @@ class PNLab(object):
         workspace_frame.rowconfigure(0, weight = 1)
         workspace_frame.columnconfigure(0, weight = 1)
         
+        self.status_bar = tk.Frame(self.root, height = 20)
+        self.status_bar.grid(row = 2, column = 0, sticky = tk.E+tk.W)
+        
+        self.status_label = tk.Label(self.status_bar)
+        self.status_label.grid(row = 0, column = 0, sticky = tk.W)
+        
         self.project_tree = ttk.Treeview(project_frame, height = int((PNLab.WORKSPACE_HEIGHT - 20)/20), selectmode = 'browse')
         self.project_tree.heading('#0', text='Project Explorer', anchor=tk.W)
         self.project_tree.grid(row = 0, column = 0, sticky = tk.NSEW)
@@ -85,6 +91,8 @@ class PNLab(object):
                                      width = PNLab.WORKSPACE_WIDTH,
                                      height = PNLab.WORKSPACE_HEIGHT)
         self.tab_manager.grid(row = 0, column = 0, sticky = tk.NSEW)
+        
+        self.tab_manager.bind('<<NotebookTabChanged>>', self._set_string_var)
         
         menubar = tk.Menu(self.root)
         menubar.add_command(label = 'Open', command = self.open)
@@ -141,6 +149,18 @@ class PNLab(object):
         
         self.project_tree.tag_bind('task', '<Double-1>', self.open_callback)
         self.root.bind('<Button-1>', self._hide_menu)
+    
+    def _set_string_var(self, event):
+        try:
+            tab_id = self.tab_manager.select()
+            if not tab_id:
+                return
+        except:
+            return
+        
+        pne = self.tab_manager.widget_dict[tab_id]
+        self.status_label.configure(textvariable = pne.status_var)
+        pne.focus_set()
     
     def popup_folder_menu(self, event):
         self.clicked_element = self.project_tree.identify('item', event.x, event.y)
@@ -222,7 +242,6 @@ class PNLab(object):
         pne = PNEditor(self.tab_manager, name = name)
         self.petri_nets[item_id] = pne
         self.tab_manager.add(pne, text = pne.name)
-        self.tab_manager.select(pne)
     
     def open_callback(self, event):
         self.clicked_element = self.project_tree.identify('item', event.x, event.y)
