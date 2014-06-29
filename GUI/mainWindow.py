@@ -85,7 +85,11 @@ class PNLab(object):
         self.task_img = tk.PhotoImage('task_img', file = os.path.join(os.path.dirname(__file__), 'img', 'doc.gif'))
         self.project_tree.tag_configure('folder', image = self.folder_img)
         self.project_tree.tag_configure('task', image = self.task_img)
+        self.project_tree.insert('', 'end', 'Actions/', text = 'Actions/', tags = ['folder'], open = True)
+        self.project_tree.insert('', 'end', 'CommActions/', text = 'CommActions/', tags = ['folder'], open = True)
         self.project_tree.insert('', 'end', 'Tasks/', text = 'Tasks/', tags = ['folder'], open = True)
+        self.project_tree.insert('', 'end', 'Environment/', text = 'Environment/', tags = ['folder'], open = True)
+        self.project_tree.insert('', 'end', 'FullPetriNets/', text = 'FullPetriNets/', tags = ['folder'], open = True)
         
         self.tab_manager = TabManager(workspace_frame,
                                      width = PNLab.WORKSPACE_WIDTH,
@@ -95,11 +99,15 @@ class PNLab(object):
         self.tab_manager.bind('<<NotebookTabChanged>>', self._set_string_var)
         
         menubar = tk.Menu(self.root)
-        menubar.add_command(label = 'Open', command = self.open)
-        menubar.add_command(label="Save", command = self.save)
-        menubar.add_command(label="Save As...", command = self.save_as)
-        menubar.add_separator()
-        menubar.add_command(label="Exit", command = self.exit, foreground = 'red', activeforeground = 'white', activebackground = 'red')
+        
+        file_menu = tk.Menu(menubar, tearoff = False)
+        file_menu.add_command(label = 'Open', command = self.open)
+        file_menu.add_command(label="Save", command = self.save)
+        file_menu.add_command(label="Save As...", command = self.save_as)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command = self.exit, foreground = 'red', activeforeground = 'white', activebackground = 'red')
+        
+        menubar.add_cascade(label = 'File', menu = file_menu)
         
         '''
         mode_menu = tk.Menu(menubar, tearoff = False)
@@ -117,18 +125,15 @@ class PNLab(object):
         
         self.folder_menu = tk.Menu(self.root, tearoff = 0)
         self.folder_menu.add_command(label = 'Add Task', command = self.create_task)
-        self.folder_menu.add_command(label = 'Add Folder', command = self.create_folder)
         self.folder_menu.add_command(label = 'Import from PNML', command = self.import_from_PNML)
-        self.folder_menu.add_command(label = 'Rename', command = self.rename_folder)
-        self.folder_menu.add_command(label = 'Move', command = self.move_folder)
-        self.folder_menu.add_command(label = 'Delete', command = self.delete_folder)
         
         self.task_menu = tk.Menu(self.root, tearoff = 0)
         self.task_menu.add_command(label = 'Open', command = self.open_petri_net)
         self.task_menu.add_command(label = 'Rename', command = self.rename_task)
         self.task_menu.add_command(label = 'Move', command = self.move_task)
         self.task_menu.add_command(label = 'Delete', command = self.delete_task)
-        self.task_menu.add_command(label = 'Export to PNML', command = self.export_to_PNML)
+        self.task_menu.add_command(label = 'Export to Standard PNML', command = self.export_to_PNML)
+        self.task_menu.add_command(label = 'Export to PIPE PNML', command = self.export_to_PIPE)
         
         #MAC OS:
         if (self.root.tk.call('tk', 'windowingsystem')=='aqua'):
@@ -164,15 +169,6 @@ class PNLab(object):
     
     def popup_folder_menu(self, event):
         self.clicked_element = self.project_tree.identify('item', event.x, event.y)
-        if self.clicked_element == 'Tasks/':
-            self.folder_menu.entryconfigure(3, state = 'disabled')
-            self.folder_menu.entryconfigure(4, state = 'disabled')
-            self.folder_menu.entryconfigure(5, state = 'disabled')
-        else:
-            self.folder_menu.entryconfigure(3, state = 'normal')
-            self.folder_menu.entryconfigure(4, state = 'normal')
-            self.folder_menu.entryconfigure(5, state = 'normal')
-        
         self.popped_up_menu = self.folder_menu
         self.folder_menu.post(event.x_root, event.y_root)
     
@@ -299,30 +295,6 @@ class PNLab(object):
         self.tab_manager.add(pne, text = pne.name)
         self.tab_manager.select(pne)
     
-    def rename_folder(self):
-        old_name = self.project_tree.item(self.clicked_element, 'text')
-        dialog = InputDialog('Folder name',
-                             'Please input a folder name, preferably composed only of alphabetic characters.',
-                             'Name',
-                             value = old_name,
-                             entry_length = 25)
-        dialog.window.transient(self.root)
-        self.root.wait_window(dialog.window)
-        if not dialog.value_set:
-            return
-        name = dialog.input_var.get()
-        parent = self.project_tree.parent(self.clicked_element)
-        
-        self._move_folder(self.clicked_element, parent, parent, old_name, name)
-    
-    def move_folder(self):
-        
-        destination = self._get_destination(self.clicked_element)
-        name = self.project_tree.item(self.clicked_element, 'text')
-        old_parent = self.project_tree.parent(self.clicked_element)
-        if destination:
-            self._move_folder(self.clicked_element, old_parent, destination, name, name)
-    
     def rename_task(self):
         old_name = self.project_tree.item(self.clicked_element, 'text')
         dialog = InputDialog('Task name',
@@ -349,35 +321,12 @@ class PNLab(object):
     
     def _get_destination(self, item):
         
-        dialog = MoveDialog(self.project_tree, item, 'Tasks/')
+        dialog = MoveDialog(self.project_tree, item, '')
         
         dialog.window.transient(self.root)
         self.root.wait_window(dialog.window)
         
         return dialog.destination
-    
-    def _move_folder(self, old_id, old_parent, parent, old_name, name):
-        item_id = parent + name
-        if item_id == old_id:
-            return
-        try:
-            self.project_tree.insert(parent, 'end', item_id, text = name, tags = ['folder'], open = True)
-            self._adjust_width(name, item_id)
-        except Exception as e:
-            tkMessageBox.showerror('ERROR', 'Item could not be inserted in the selected node, possible duplicate name.\n\nERROR: ' + str(e))
-            return
-        
-        children_queue = list(self.project_tree.get_children(old_id))
-        while children_queue:
-            current = children_queue.pop(0)
-            item_tags = self.project_tree.item(current, 'tags')
-            current_name = self.project_tree.item(current, 'text')
-            if 'folder' in item_tags:
-                self._move_folder(current, old_id, item_id, current_name, current_name)
-            else:
-                self._move_task(current, old_id, item_id, current_name, current_name)
-        
-        self.project_tree.delete(old_id)
     
     def _move_task(self, old_id, old_parent, parent, old_name, name):
         item_id = parent + name
@@ -412,26 +361,6 @@ class PNLab(object):
             pass
         self.project_tree.delete(item)
     
-    def delete_folder(self, item = None):
-        
-        if not item:
-            item = self.clicked_element
-        
-        if item == 'Tasks/':
-            return
-            
-        children_queue = list(self.project_tree.get_children(item))
-        
-        while children_queue:
-            current = children_queue.pop(0)
-            item_tags = self.project_tree.item(current, 'tags')
-            if 'folder' in item_tags:
-                self.delete_folder(current)
-            else:
-                self.delete_task(current)
-        
-        self.project_tree.delete(item)
-    
     def export_to_PNML(self):
         filename = tkFileDialog.asksaveasfilename(
                                                   defaultextension = '.pnml',
@@ -446,6 +375,9 @@ class PNLab(object):
             self.petri_nets[self.clicked_element].petri_net.to_pnml_file(filename)
         except Exception as e:
             tkMessageBox.showerror('Error saving PNML file.', 'An error occurred while saving the PNML file.\n\n' + str(e))
+    
+    def export_to_PIPE(self):
+        pass
     
     def open(self):
         zip_filename = tkFileDialog.askopenfile(
@@ -497,19 +429,17 @@ class PNLab(object):
         zipFile = zipfile.ZipFile(self.file_path, 'w')
         tmp_dir = tempfile.mkdtemp()
         
-        children_queue = ['Tasks/']
+        folders = ('Actions/', 'CommActions/', 'Tasks/', 'Environment/', 'FullPetriNets/')
         
-        while children_queue:
-            current = children_queue.pop(0)
-            item_tags = self.project_tree.item(current, 'tags')
-            if 'folder' in item_tags:
-                folder = current[current[:-1].rfind('/') + 1:]
-                file_path = os.path.join(tmp_dir, folder)
+        for f in folders:
+            children = self.project_tree.get_children(f)
+            if not children:
+                file_path = os.path.join(tmp_dir, f)
                 os.mkdir(file_path)
-                zipFile.write(file_path, current)
+                zipFile.write(file_path, f)
                 os.rmdir(file_path)
-                children_queue += self.project_tree.get_children(current)
-            else:
+                continue
+            for current in children:
                 path = current + '.pnml'
                 pne = self.petri_nets[current]
                 file_name = path[path.rindex('/') + 1:]
@@ -518,16 +448,6 @@ class PNLab(object):
                 zipFile.write(file_path, path)
                 pne.edited = False
                 os.remove(file_path)
-        '''
-        for path, pne in self.petri_nets.iteritems():
-            path += '.pnml'
-            file_name = path[path.rindex('/') + 1:]
-            file_path = os.path.join(tmp_dir, file_name)
-            pne._petri_net.to_pnml_file(file_path)
-            zipFile.write(file_path, path)
-            pne.edited = False
-            os.remove(file_path)
-        '''
         
         os.rmdir(tmp_dir)
         zipFile.close()
