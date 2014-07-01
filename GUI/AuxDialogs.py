@@ -105,10 +105,8 @@ class _SelectTreeElementDialog(object):
         ysb.grid(row = 0, column = 1, sticky = tk.NS)
         xsb.grid(row = 1, column = 0, sticky = tk.EW)
         
-        #self.folder_img = tk.PhotoImage('folder_img_dialog', file = os.path.join(os.path.dirname(__file__), 'img', 'TreeView_Folder.gif'))
-        #self.task_img = tk.PhotoImage('task_img', file = os.path.join(os.path.dirname(__file__), 'img', 'doc.gif'))
         self.tree.tag_configure('folder', image = 'folder_img')
-        self.tree.tag_configure('task', image = 'task_img')
+        self.tree.tag_configure('petri_net', image = 'petri_net_img')
         
         elements_queue = [root]
         while elements_queue:
@@ -129,7 +127,7 @@ class _SelectTreeElementDialog(object):
         if select_folder:
             self.tree.tag_bind('folder', '<Double-1>', self.ok_callback)
         else:
-            self.tree.tag_bind('task', '<Double-1>', self.ok_callback)
+            self.tree.tag_bind('petri_net', '<Double-1>', self.ok_callback)
         
         button_frame = tk.Frame(self.window)
         button_frame.grid(row = 2, column = 0, sticky = tk.N)

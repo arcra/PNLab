@@ -87,9 +87,9 @@ class PNLab(object):
         xsb.grid(row = 1, column = 0, sticky = tk.EW)
         
         self.folder_img = tk.PhotoImage('folder_img', file = os.path.join(os.path.dirname(__file__), 'img', 'TreeView_Folder.gif'))
-        self.task_img = tk.PhotoImage('task_img', file = os.path.join(os.path.dirname(__file__), 'img', 'doc.gif'))
+        self.petri_net_img = tk.PhotoImage('petri_net_img', file = os.path.join(os.path.dirname(__file__), 'img', 'doc.gif'))
         self.project_tree.tag_configure('folder', image = self.folder_img)
-        self.project_tree.tag_configure('task', image = self.task_img)
+        self.project_tree.tag_configure('petri_net', image = self.petri_net_img)
         self.project_tree.insert('', 'end', 'Actions/', text = 'Actions/', tags = ['folder'], open = True)
         self.project_tree.insert('', 'end', 'CommActions/', text = 'CommActions/', tags = ['folder'], open = True)
         self.project_tree.insert('', 'end', 'Tasks/', text = 'Tasks/', tags = ['folder'], open = True)
@@ -134,17 +134,17 @@ class PNLab(object):
         self.file_path = None
         
         self.folder_menu = tk.Menu(self.root, tearoff = 0)
-        self.folder_menu.add_command(label = 'Add Task', command = self.create_task)
+        self.folder_menu.add_command(label = 'Add Petri Net', command = self.create_petri_net)
         self.folder_menu.add_command(label = 'Import from Standard PNML', command = self.import_from_PNML)
         self.folder_menu.add_command(label = 'Import from PIPE PNML', command = self.import_from_PIPE)
         
-        self.task_menu = tk.Menu(self.root, tearoff = 0)
-        self.task_menu.add_command(label = 'Open', command = self.open_petri_net)
-        self.task_menu.add_command(label = 'Rename', command = self.rename_task)
-        self.task_menu.add_command(label = 'Move', command = self.move_task)
-        self.task_menu.add_command(label = 'Delete', command = self.delete_task)
-        self.task_menu.add_command(label = 'Export to Standard PNML', command = self.export_to_PNML)
-        self.task_menu.add_command(label = 'Export to PIPE PNML', command = self.export_to_PIPE)
+        self.petri_net_menu = tk.Menu(self.root, tearoff = 0)
+        self.petri_net_menu.add_command(label = 'Open', command = self.open_petri_net)
+        self.petri_net_menu.add_command(label = 'Rename', command = self.rename_petri_net)
+        self.petri_net_menu.add_command(label = 'Move', command = self.move_petri_net)
+        self.petri_net_menu.add_command(label = 'Delete', command = self.delete_petri_net)
+        self.petri_net_menu.add_command(label = 'Export to Standard PNML', command = self.export_to_PNML)
+        self.petri_net_menu.add_command(label = 'Export to PIPE PNML', command = self.export_to_PIPE)
         
         #MAC OS:
         if (self.root.tk.call('tk', 'windowingsystem')=='aqua'):
@@ -156,14 +156,14 @@ class PNLab(object):
             
         #MAC OS:
         if (self.root.tk.call('tk', 'windowingsystem')=='aqua'):
-            self.project_tree.tag_bind('task', '<2>', self.popup_task_menu)
-            self.project_tree.tag_bind('task', '<Control-1>', self.popup_task_menu)
+            self.project_tree.tag_bind('petri_net', '<2>', self.popup_petri_net_menu)
+            self.project_tree.tag_bind('petri_net', '<Control-1>', self.popup_petri_net_menu)
         #Windows / UNIX / Linux:
         else:
-            self.project_tree.tag_bind('task', '<3>', self.popup_task_menu)
+            self.project_tree.tag_bind('petri_net', '<3>', self.popup_petri_net_menu)
         
         
-        self.project_tree.tag_bind('task', '<Double-1>', self.open_callback)
+        self.project_tree.tag_bind('petri_net', '<Double-1>', self.open_callback)
         self.root.bind('<Button-1>', self._hide_menu)
         self.root.bind('<Control-s>', self.save)
         self.root.bind('<Control-q>', self.exit)
@@ -189,10 +189,10 @@ class PNLab(object):
         self.popped_up_menu = self.folder_menu
         self.folder_menu.post(event.x_root, event.y_root)
     
-    def popup_task_menu(self, event):
+    def popup_petri_net_menu(self, event):
         self.clicked_element = self.project_tree.identify('item', event.x, event.y)
-        self.popped_up_menu = self.task_menu
-        self.task_menu.post(event.x_root, event.y_root)
+        self.popped_up_menu = self.petri_net_menu
+        self.petri_net_menu.post(event.x_root, event.y_root)
     
     def _hide_menu(self, event):
         """Hides a popped-up menu."""
@@ -218,9 +218,9 @@ class PNLab(object):
             count += 1
         return count
     
-    def create_task(self):
-        dialog = InputDialog('Task name',
-                             'Please input a task name, preferably composed only of alphabetic characters.',
+    def create_petri_net(self):
+        dialog = InputDialog('Petri Net name',
+                             'Please input a Petri Net name, preferably composed only of alphabetic characters.',
                              'Name',
                              entry_length = 25)
         dialog.window.transient(self.root)
@@ -231,10 +231,10 @@ class PNLab(object):
         item_id = self.clicked_element + name
         
         try:
-            self.project_tree.insert(self.clicked_element, 'end', item_id, text = name, tags = ['task'])
+            self.project_tree.insert(self.clicked_element, 'end', item_id, text = name, tags = ['petri_net'])
             self._adjust_width(name, item_id)
         except Exception as e:
-            tkMessageBox.showerror('ERROR', 'Task could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
+            tkMessageBox.showerror('ERROR', 'Petri Net could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
             return
         
         pne = PNEditor(self.tab_manager, name = name)
@@ -289,10 +289,10 @@ class PNLab(object):
         item_id = parent + name
         
         try:
-            self.project_tree.insert(parent, 'end', item_id, text = name, tags = ['task'])
+            self.project_tree.insert(parent, 'end', item_id, text = name, tags = ['petri_net'])
             self._adjust_width(name, item_id)
         except Exception as e:
-            tkMessageBox.showerror('ERROR', 'Task could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
+            tkMessageBox.showerror('ERROR', 'Petri Net could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
             return
         pne = PNEditor(self.tab_manager, PetriNet = pn)
         pne.edited = False
@@ -334,10 +334,10 @@ class PNLab(object):
         item_id = parent + name
         
         try:
-            self.project_tree.insert(parent, 'end', item_id, text = name, tags = ['task'])
+            self.project_tree.insert(parent, 'end', item_id, text = name, tags = ['petri_net'])
             self._adjust_width(name, item_id)
         except Exception as e:
-            tkMessageBox.showerror('ERROR', 'Task could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
+            tkMessageBox.showerror('ERROR', 'Petri Net could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
             return
         pne = PNEditor(self.tab_manager, PetriNet = pn)
         pne.edited = False
@@ -345,10 +345,10 @@ class PNLab(object):
         self.tab_manager.add(pne, text = pne.name)
         self.tab_manager.select(pne)
     
-    def rename_task(self):
+    def rename_petri_net(self):
         old_name = self.project_tree.item(self.clicked_element, 'text')
-        dialog = InputDialog('Task name',
-                             'Please input a task name, preferably composed only of alphabetic characters.',
+        dialog = InputDialog('Petri Net name',
+                             'Please input a Petri Net name, preferably composed only of alphabetic characters.',
                              'Name',
                              value = old_name,
                              entry_length = 25)
@@ -359,15 +359,15 @@ class PNLab(object):
         name = dialog.input_var.get()
         parent = self.project_tree.parent(self.clicked_element)
         
-        self._move_task(self.clicked_element, parent, parent, old_name, name)
+        self._move_petri_net(self.clicked_element, parent, parent, old_name, name)
     
-    def move_task(self):
+    def move_petri_net(self):
         
         destination = self._get_destination(self.clicked_element)
         name = self.project_tree.item(self.clicked_element, 'text')
         old_parent = self.project_tree.parent(self.clicked_element)
         if destination:
-            self._move_task(self.clicked_element, old_parent, destination, name, name)
+            self._move_petri_net(self.clicked_element, old_parent, destination, name, name)
     
     def _get_destination(self, item):
         
@@ -378,11 +378,11 @@ class PNLab(object):
         
         return dialog.selection
     
-    def _move_task(self, old_id, old_parent, parent, old_name, name):
+    def _move_petri_net(self, old_id, old_parent, parent, old_name, name):
         item_id = parent + name
         pne = self.petri_nets.pop(old_id)
         try:
-            self.project_tree.insert(parent, 'end', item_id, text = name, tags = ['task'])
+            self.project_tree.insert(parent, 'end', item_id, text = name, tags = ['petri_net'])
             self.project_tree.delete(old_id)
             self._adjust_width(name, item_id)
             pne.name = name
@@ -390,7 +390,7 @@ class PNLab(object):
         except Exception as e:
             tkMessageBox.showerror('ERROR', 'Item could not be inserted in the selected node, possible duplicate name.\n\nERROR: ' + str(e))
             try:
-                self.project_tree.insert(old_parent, 'end', old_id, text = old_name, tags = ['task'])
+                self.project_tree.insert(old_parent, 'end', old_id, text = old_name, tags = ['petri_net'])
             except:
                 pass
             self.petri_nets[old_id] = pne
@@ -401,7 +401,7 @@ class PNLab(object):
         except:
             pass
     
-    def delete_task(self, item = None):
+    def delete_petri_net(self, item = None):
         if not item:
             item = self.clicked_element
         pne = self.petri_nets.pop(item, None)
