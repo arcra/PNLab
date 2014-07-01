@@ -909,9 +909,8 @@ class PetriNet(object):
         if not self._can_connect(source, target):
             raise Exception('Arcs should go either from a place to a transition or vice versa and they should exist in the PN.')
         
-        if not _treeElement:
-            if repr(target) in source._outgoing_arcs:
-                _treeElement = source._outgoing_arcs[repr(target)]._treeElement
+        if repr(target) in source._outgoing_arcs:
+            return
         
         arc = _Arc(source, target, weight, _treeElement)
         
