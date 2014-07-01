@@ -626,8 +626,6 @@ class PetriNet(object):
     
     UPDATE_LABEL_OFFSET = True
     
-    PNML_XMLNS = 'http://www.pnml.org/version-2009/grammar/pnml'
-    
     def __init__(self, name, _net = None):
         """Petri Net Class' constuctor."""
         
@@ -641,7 +639,7 @@ class PetriNet(object):
         self.transitions = {}
         self.scale = 1.0
         
-        root_el = ET.Element('pnml', {'xmlns': PetriNet.PNML_XMLNS})
+        root_el = ET.Element('pnml', {'xmlns': 'http://www.pnml.org/version-2009/grammar/pnml'})
         self._tree = ET.ElementTree(root_el)
         page = None
         if _net is not None:
@@ -898,18 +896,24 @@ class PetriNet(object):
         
         return True
     
-    def add_arc(self, source, target, weight = 1, treeElement = None):
+    def add_arc(self, source, target, weight = 1, _treeElement = None):
         """
         Adds an arc from 'source' to 'target' with weight 'weight'.
         
         source and target should  be instances of the Place and Transition classes,
         one of each.
+        
+        _treeElement is an internal field for maintaining a reference to the tree element when read from a pnml file.
         """
         
         if not self._can_connect(source, target):
             raise Exception('Arcs should go either from a place to a transition or vice versa and they should exist in the PN.')
         
-        arc = _Arc(source, target, weight, treeElement)
+        if not _treeElement:
+            if repr(target) in source._outgoing_arcs:
+                _treeElement = source._outgoing_arcs[repr(target)]._treeElement
+        
+        arc = _Arc(source, target, weight, _treeElement)
         
         src = repr(source)
         trgt = repr(target)

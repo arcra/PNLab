@@ -16,10 +16,15 @@ import tkFont
 import zipfile
 import tempfile
 
-from PetriNets import PetriNet
+from lxml import etree as ET
+from subprocess import call
+
+from PetriNets import PetriNet, PlaceTypes
 from TabManager import TabManager
 from PNEditor import PNEditor
-from AuxDialogs import InputDialog, MoveDialog
+from AuxDialogs import InputDialog, MoveDialog, SelectItemDialog
+from PNLab2PIPE import pnlab2pipe
+from PIPE2PNLab import pipe2pnlab
 
 class PNLab(object):
     
@@ -89,7 +94,6 @@ class PNLab(object):
         self.project_tree.insert('', 'end', 'CommActions/', text = 'CommActions/', tags = ['folder'], open = True)
         self.project_tree.insert('', 'end', 'Tasks/', text = 'Tasks/', tags = ['folder'], open = True)
         self.project_tree.insert('', 'end', 'Environment/', text = 'Environment/', tags = ['folder'], open = True)
-        self.project_tree.insert('', 'end', 'FullPetriNets/', text = 'FullPetriNets/', tags = ['folder'], open = True)
         
         self.tab_manager = TabManager(workspace_frame,
                                      width = PNLab.WORKSPACE_WIDTH,
@@ -102,12 +106,18 @@ class PNLab(object):
         
         file_menu = tk.Menu(menubar, tearoff = False)
         file_menu.add_command(label = 'Open', command = self.open)
-        file_menu.add_command(label="Save", command = self.save)
+        file_menu.add_command(label="Save", command = self.save, accelerator = 'Ctrl+s')
         file_menu.add_command(label="Save As...", command = self.save_as)
         file_menu.add_separator()
-        file_menu.add_command(label="Exit", command = self.exit, foreground = 'red', activeforeground = 'white', activebackground = 'red')
+        file_menu.add_command(label="Exit", command = self.exit, accelerator = 'Ctrl+q', foreground = 'red', activeforeground = 'white', activebackground = 'red')
         
         menubar.add_cascade(label = 'File', menu = file_menu)
+        
+        analysis_menu = tk.Menu(menubar, tearoff = False)
+        analysis_menu.add_command(label="Generate FullPetriNet", command = self.get_full_pn)
+        analysis_menu.add_command(label = 'ComputeMC', command = self.computeMC)
+        
+        menubar.add_cascade(label = 'Analysis Tools', menu = analysis_menu)
         
         '''
         mode_menu = tk.Menu(menubar, tearoff = False)
@@ -125,7 +135,8 @@ class PNLab(object):
         
         self.folder_menu = tk.Menu(self.root, tearoff = 0)
         self.folder_menu.add_command(label = 'Add Task', command = self.create_task)
-        self.folder_menu.add_command(label = 'Import from PNML', command = self.import_from_PNML)
+        self.folder_menu.add_command(label = 'Import from Standard PNML', command = self.import_from_PNML)
+        self.folder_menu.add_command(label = 'Import from PIPE PNML', command = self.import_from_PIPE)
         
         self.task_menu = tk.Menu(self.root, tearoff = 0)
         self.task_menu.add_command(label = 'Open', command = self.open_petri_net)
@@ -154,7 +165,13 @@ class PNLab(object):
         
         self.project_tree.tag_bind('task', '<Double-1>', self.open_callback)
         self.root.bind('<Button-1>', self._hide_menu)
+        self.root.bind('<Control-s>', self.save)
+        self.root.bind('<Control-q>', self.exit)
     
+    
+    #######################################################
+    #        TREE WIDGET, PNs AND TABS INTERACTIONS
+    #######################################################
     def _set_string_var(self, event):
         try:
             tab_id = self.tab_manager.select()
@@ -201,21 +218,6 @@ class PNLab(object):
             count += 1
         return count
     
-    def create_folder(self):
-        dialog = InputDialog(
-                             'Folder name',
-                             'Please input a folder name, preferably composed only of alphabetic characters.',
-                             'Name',
-                             entry_length = 25)
-        dialog.window.transient(self.root)
-        self.root.wait_window(dialog.window)
-        if not dialog.value_set:
-            return
-        name = dialog.input_var.get()
-        item_id = self.clicked_element + name + '/'
-        self.project_tree.insert(self.clicked_element, 'end', item_id, text = name + '/', tags = ['folder'], open = True)
-        self._adjust_width(name + '/', item_id)
-    
     def create_task(self):
         dialog = InputDialog('Task name',
                              'Please input a task name, preferably composed only of alphabetic characters.',
@@ -255,14 +257,17 @@ class PNLab(object):
     def import_from_PNML(self):
         filename = tkFileDialog.askopenfilename(
                                               defaultextension = '.pnml',
-                                              filetypes=[('PNML file', '*.pnml'), ('PNML file', '*.pnml.xml')],
-                                              title = 'Open PNML file...',
+                                              filetypes=[('Standard PNML file', '*.pnml'), ('Standard PNML file', '*.pnml.xml')],
+                                              title = 'Open Standard PNML file...',
                                               initialdir = os.path.expanduser('~/Desktop')
                                               )
         if not filename:
             return
         
-        self._import_from_pnml(filename, self.clicked_element)
+        item_id = self._import_from_pnml(filename, self.clicked_element)
+        pne = self.petri_nets[item_id]
+        self.tab_manager.add(pne, text = pne.name)
+        self.tab_manager.select(pne)
         
     def _import_from_pnml(self, filename, parent):
         try:
@@ -281,6 +286,51 @@ class PNLab(object):
             tkMessageBox.showerror('Error loading PetriNet.', 'An error occurred while loading the PetriNet object.\n\n' + str(e))
         
         name = pn.name
+        item_id = parent + name
+        
+        try:
+            self.project_tree.insert(parent, 'end', item_id, text = name, tags = ['task'])
+            self._adjust_width(name, item_id)
+        except Exception as e:
+            tkMessageBox.showerror('ERROR', 'Task could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
+            return
+        pne = PNEditor(self.tab_manager, PetriNet = pn)
+        pne.edited = False
+        self.petri_nets[item_id] = pne
+        return item_id
+    
+    def import_from_PIPE(self):
+        filename = tkFileDialog.askopenfilename(
+                                              defaultextension = '.pnml.xml',
+                                              filetypes=[('PNML file', '*.pnml.xml')],
+                                              title = 'Open PIPE PNML file...',
+                                              initialdir = os.path.expanduser('~/Desktop')
+                                              )
+        if not filename:
+            return
+        
+        pn = None
+        try:
+            name = os.path.basename(filename)
+            if name[-5:] == '.pnml':
+                name = name[:-5]
+            if name[-9:] == '.pnml.xml':
+                name = name[:-9]
+            et = pipe2pnlab.convert(filename)
+            petri_nets = PetriNet.from_ElementTree(et, name)
+        except Exception as e:
+            tkMessageBox.showerror('Error reading PNML file.', 'An error occurred while reading the PNML file.\n\n' + str(e))
+            return
+        
+        if len(petri_nets) > 1:
+            print 'warning: More than 1 petri net read, only 1 loaded.'
+        
+        try:
+            pn = petri_nets[0]
+        except Exception as e:
+            tkMessageBox.showerror('Error loading PetriNet.', 'An error occurred while loading the PetriNet object.\n\n' + str(e))
+        
+        parent = self.clicked_element
         item_id = parent + name
         
         try:
@@ -326,7 +376,7 @@ class PNLab(object):
         dialog.window.transient(self.root)
         self.root.wait_window(dialog.window)
         
-        return dialog.destination
+        return dialog.selection
     
     def _move_task(self, old_id, old_parent, parent, old_name, name):
         item_id = parent + name
@@ -364,9 +414,10 @@ class PNLab(object):
     def export_to_PNML(self):
         filename = tkFileDialog.asksaveasfilename(
                                                   defaultextension = '.pnml',
-                                                  filetypes=[('PNML file', '*.pnml'), ('PNML file', '*.pnml.xml')],
-                                                  title = 'Save as PNML file...',
-                                                  initialdir = os.path.expanduser('~/Desktop')
+                                                  filetypes=[('Standard PNML file', '*.pnml')],
+                                                  title = 'Save as Standard PNML file...',
+                                                  initialdir = os.path.dirname(self.file_path) if self.path is not None else os.path.expanduser('~/Desktop'),
+                                                  initialfile = os.path.basename(self.clicked_element) + '.pnml'
                                                   )
         if not filename:
             return
@@ -377,10 +428,29 @@ class PNLab(object):
             tkMessageBox.showerror('Error saving PNML file.', 'An error occurred while saving the PNML file.\n\n' + str(e))
     
     def export_to_PIPE(self):
-        pass
+        filename = tkFileDialog.asksaveasfilename(
+                                                  defaultextension = '.pnml.xml',
+                                                  filetypes=[('PIPE PNML file', '*.pnml.xml')],
+                                                  title = 'Save as PIPE PNML file...',
+                                                  initialdir = os.path.dirname(self.file_path) if self.path is not None else os.path.expanduser('~/Desktop'),
+                                                  initialfile = os.path.basename(self.clicked_element) + '.pnml.xml'
+                                                  )
+        if not filename:
+            return
+        
+        try:
+            et = self.petri_nets[self.clicked_element]._petri_net.to_ElementTree()
+            et = pnlab2pipe.convert(et)
+            et.write(filename, encoding = 'utf-8', xml_declaration = True, pretty_print = True)
+        except Exception as e:
+            tkMessageBox.showerror('Error saving PNML file.', 'An error occurred while saving the PNML file.\n\n' + str(e))
     
+    
+    #######################################################
+    #                FILE MENU ACTIONS
+    #######################################################
     def open(self):
-        zip_filename = tkFileDialog.askopenfile(
+        zip_filename = tkFileDialog.askopenfilename(
                                                   defaultextension = '.rpnp',
                                                   filetypes=[('Robotic Petri Net Plan file', '*.rpnp')],
                                                   title = 'Open RPNP file...',
@@ -391,10 +461,10 @@ class PNLab(object):
         
         self.file_path = zip_filename
         
-        zipFile = zipfile.ZipFile(self.file_path, 'r')
+        zip_file = zipfile.ZipFile(self.file_path, 'r')
         tmp_dir = tempfile.mkdtemp()
         
-        for x in zipFile.infolist():
+        for x in zip_file.infolist():
             prev_sep = -1
             sep_index = x.filename.find('/', 0)
             while sep_index > -1:
@@ -412,52 +482,57 @@ class PNLab(object):
                 parent = x.filename[:last_sep]
                 file_path = os.path.join(tmp_dir, filename)
                 f = open(file_path, 'w')
-                data = zipFile.read(x)
+                data = zip_file.read(x)
                 f.write(data)
                 f.close()
                 self._import_from_pnml(file_path, parent)
                 os.remove(file_path)
             
         os.rmdir(tmp_dir)
-        zipFile.close()
+        zip_file.close()
     
-    def save(self):
+    def save(self, event = None):
         if not self.file_path:
             self.save_as()
             return
         
-        zipFile = zipfile.ZipFile(self.file_path, 'w')
+        try:
+            zip_file = zipfile.ZipFile(self.file_path, "w")
+        except:
+            tkMessageBox.showerror('Error opening file.', 'A problem ocurred while opening a file for writing, make sure the file is not open by other program before saving.')
+            return
         tmp_dir = tempfile.mkdtemp()
         
-        folders = ('Actions/', 'CommActions/', 'Tasks/', 'Environment/', 'FullPetriNets/')
+        folders = ('Actions/', 'CommActions/', 'Tasks/', 'Environment/')
         
         for f in folders:
             children = self.project_tree.get_children(f)
             if not children:
                 file_path = os.path.join(tmp_dir, f)
                 os.mkdir(file_path)
-                zipFile.write(file_path, f)
+                zip_file.write(file_path, f)
                 os.rmdir(file_path)
                 continue
             for current in children:
                 path = current + '.pnml'
                 pne = self.petri_nets[current]
-                file_name = path[path.rindex('/') + 1:]
+                file_name = os.path.basename(path)
                 file_path = os.path.join(tmp_dir, file_name)
                 pne._petri_net.to_pnml_file(file_path)
-                zipFile.write(file_path, path)
+                zip_file.write(file_path, path)
                 pne.edited = False
                 os.remove(file_path)
         
         os.rmdir(tmp_dir)
-        zipFile.close()
+        zip_file.close()
     
     def save_as(self):
         zip_filename = tkFileDialog.asksaveasfilename(
                                                   defaultextension = '.rpnp',
                                                   filetypes=[('Robotic Petri Net Plan file', '*.rpnp')],
                                                   title = 'Save as RPNP file...',
-                                                  initialdir = os.path.expanduser('~/Desktop')
+                                                  initialdir = os.path.dirname(self.file_path) if self.path is not None else os.path.expanduser('~/Desktop'),
+                                                  initialfile = os.path.basename(self.file_path) if self.file_path is not None else ''
                                                   )
         if not zip_filename:
             return
@@ -467,7 +542,7 @@ class PNLab(object):
         self.save()
         
     
-    def exit(self):
+    def exit(self, event = None):
         
         edited = False
         for pne in self.petri_nets.itervalues():
@@ -480,6 +555,103 @@ class PNLab(object):
                 return
         
         self.root.destroy()
+    
+    #######################################################
+    #                ANALYSIS MENU ACTIONS
+    #######################################################
+    def get_full_pn(self):
+        
+        dialog = SelectItemDialog(self.project_tree, None, 'Tasks/')
+        
+        dialog.window.transient(self.root)
+        self.root.wait_window(dialog.window)
+        
+        if not dialog.selection:
+            return
+        
+        tmp_dir = tempfile.mkdtemp()
+        print tmp_dir
+        folders = ('Actions/', 'CommActions/', 'Tasks/', 'Environment/')
+        
+        root_pred = ET.Element('AvailablePredicates')
+        predicates_tree = ET.ElementTree(root_pred)
+        
+        added_predicates = set()
+        
+        for f in folders:
+            dir_path = os.path.join(tmp_dir, f)
+            os.mkdir(dir_path)
+            
+            root_models = ET.Element('AvailablePetriNetModels')
+            models_tree = ET.ElementTree(root_models)
+            children = self.project_tree.get_children(f)
+            
+            for current in children:
+                path = current + '.pnml'
+                pne = self.petri_nets[current]
+                
+                model = ET.SubElement(root_models, 'PetriNetModel')
+                tmp = ET.SubElement(model, 'FilePath')
+                tmp.text = os.path.basename(path)
+                #Running Conditions
+                #Desired Effects
+                #Comment
+                
+                for p in pne._petri_net.places.itervalues():
+                    if p.type == PlaceTypes.PREDICATE and repr(p) not in added_predicates and p.name[:4] != 'NOT_':
+                        added_predicates.add(repr(p))
+                        pred = ET.SubElement(root_pred, 'Predicate')
+                        tmp = ET.SubElement(pred, 'Name')
+                        tmp.text = p.name
+                        tmp = ET.SubElement(pred, 'InitialMarking')
+                        tmp.text = str(p.init_marking)
+                        tmp = ET.SubElement(pred, 'Comment')
+                        tmp.text = '...'
+                
+                file_path = os.path.join(tmp_dir, path)
+                et = pne._petri_net.to_ElementTree()
+                et = pnlab2pipe.convert(et)
+                et.write(file_path, encoding = 'utf-8', xml_declaration = True)
+                
+            models_tree.write(os.path.join(tmp_dir, f, 'AvailableModels.xml'), encoding = 'utf-8', xml_declaration = True)
+            
+        predicates_tree.write(os.path.join(tmp_dir, 'PredicatesList.xml'), encoding = 'utf-8', xml_declaration = True)
+        
+        dir_path = os.path.join(tmp_dir, 'FullPetriNets/')
+        os.mkdir(dir_path)
+        
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        path = os.path.join(path, 'Analysis_tools', 'expandNet')
+        task = os.path.join(tmp_dir, dialog.selection + '.pnml')
+        call([path, task])
+        
+        try:
+            os.remove('PetriNetFramework.log')
+        except:
+            pass
+        
+        for f in folders:
+            children = self.project_tree.get_children(f)
+            
+            for current in children:
+                path = current + '.pnml'
+                file_path = os.path.join(tmp_dir, path)
+                os.remove(file_path)
+            
+            dir_path = os.path.join(tmp_dir, f)
+            os.rmdir(dir_path)
+        
+        #TODO: Ask where to output the file
+        call(['mv', os.path.join(tmp_dir, 'FullPetriNets', dialog.selection + '.pnml'), os.curdir])
+        
+        
+        dir_path = os.path.join(tmp_dir, 'FullPetriNets')
+        os.rmdir(dir_path)
+        
+        os.rmdir(tmp_dir)
+    
+    def computeMC(self):
+        pass
 
 if __name__ == '__main__':
     w = PNLab()

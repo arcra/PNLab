@@ -2,6 +2,7 @@
 """
 @author: Adrián Revuelta Cuauhtli
 """
+import os
 import re
 import Tkinter as tk
 import ttk
@@ -83,18 +84,19 @@ def FloatDialog(title, text, label, init_value = 0.0):
 def NonNegativeFloatDialog(title, text, label, init_value = 0.0):
     return InputDialog(title, text, label, _POSITIVE_FLOAT_REGEX, str(init_value), 'Please enter a valid positive decimal number.')
 
-class MoveDialog(object):
+class _SelectTreeElementDialog(object):
     
-    def __init__(self, src_tree, item, root):
+    def __init__(self, src_tree, item, root, title, widget_text, select_folder):
         
-        self.destination = None
+        self.selection = None
+        self.select_folder = select_folder
         
         self.window = tk.Toplevel()
-        self.window.title('Select target...')
+        self.window.title(title)
         
         self.tree = ttk.Treeview(self.window, height = 10, selectmode = 'browse')
         self.tree.column('#0', minwidth = src_tree.column('#0', 'minwidth'), stretch = True)
-        self.tree.heading('#0', text='Move element to...', anchor=tk.W)
+        self.tree.heading('#0', text=widget_text, anchor=tk.W)
         self.tree.grid(row = 0, column = 0, sticky = tk.NSEW)
         
         ysb = ttk.Scrollbar(self.window, orient='vertical', command=self.tree.yview)
@@ -103,13 +105,20 @@ class MoveDialog(object):
         ysb.grid(row = 0, column = 1, sticky = tk.NS)
         xsb.grid(row = 1, column = 0, sticky = tk.EW)
         
+        #self.folder_img = tk.PhotoImage('folder_img_dialog', file = os.path.join(os.path.dirname(__file__), 'img', 'TreeView_Folder.gif'))
+        #self.task_img = tk.PhotoImage('task_img', file = os.path.join(os.path.dirname(__file__), 'img', 'doc.gif'))
+        self.tree.tag_configure('folder', image = 'folder_img')
+        self.tree.tag_configure('task', image = 'task_img')
+        
         elements_queue = [root]
         while elements_queue:
             current = elements_queue.pop(0)
-            element_tags = src_tree.item(current, 'tags')
-            if 'folder' not in element_tags or current == item:
+            if current == item:
                 continue
             elements_queue += src_tree.get_children(current)
+            element_tags = src_tree.item(current, 'tags')
+            if select_folder and 'folder' not in element_tags:
+                continue
             self.tree.insert(src_tree.parent(current),
                         'end',
                         current,
@@ -117,7 +126,10 @@ class MoveDialog(object):
                         tags = element_tags,
                         open = True)
         
-        self.tree.tag_bind('folder', '<Double-1>', self.ok_callback)
+        if select_folder:
+            self.tree.tag_bind('folder', '<Double-1>', self.ok_callback)
+        else:
+            self.tree.tag_bind('task', '<Double-1>', self.ok_callback)
         
         button_frame = tk.Frame(self.window)
         button_frame.grid(row = 2, column = 0, sticky = tk.N)
@@ -139,11 +151,22 @@ class MoveDialog(object):
         
     def ok_callback(self, event = None):
         if not self.tree.selection():
-            tkMessageBox.showwarning('No option selected.', 'Please select a new destination before pressing ok.')
+            tkMessageBox.showwarning('No option selected.', 'Please select an item before pressing ok.')
             return
         
-        self.destination = self.tree.selection()[0]
+        element_tags = self.tree.item(self.tree.selection(), 'tags')
+        if not self.select_folder and 'folder' in element_tags:
+            tkMessageBox.showwarning('Incorrect option selected.', 'Please select an item which is not a folder.')
+            return
+        
+        self.selection = self.tree.selection()[0]
         self.window.destroy()
+
+def MoveDialog(src_tree, item, root):
+    return _SelectTreeElementDialog(src_tree, item, root, 'Select destination...', 'Move element to...', True)
+
+def SelectItemDialog(src_tree, item, root):
+    return _SelectTreeElementDialog(src_tree, item, root, 'Select main task...', 'Tasks...', False)
 
 if __name__ == '__main__':
     w = PositiveIntDialog('test', 'test text', 'test value', 1)
