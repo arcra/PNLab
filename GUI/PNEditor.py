@@ -98,7 +98,7 @@ class PNEditor(Tkinter.Canvas):
         
         self._offset = Vec2()
         
-        self.text_font = tkFont.Font(self, family = "Helvetica", size = 14)
+        self.text_font = tkFont.Font(self, family = "Helvetica", size = 12)
         self._anchor_tag = 'all'
         self._anchor_set = False
         
@@ -1648,7 +1648,6 @@ class PNEditor(Tkinter.Canvas):
                 self._draw_item_arcs(p)
                 tkMessageBox.showerror('ERROR', str(e))
                 return
-            print repr(p)
             self.addtag_withtag('place_' + repr(p), canvas_id)
             tags = ('label',) + self.gettags(canvas_id)
             self.create_text(p.position.x,
