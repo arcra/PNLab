@@ -144,7 +144,6 @@ class PNEditor(Tkinter.Canvas):
         else:
             self.bind('<3>', self._popup_menu)
         
-        #self.bind('<Double-1>', self._test)
         self.bind('<Double-1>', self._set_connecting)
     
     def _set_connecting(self, event):
@@ -165,10 +164,6 @@ class PNEditor(Tkinter.Canvas):
                 self._connect_place_to()
             elif 'transition' in tags:
                 self._connect_transition_to()
-    
-    def _test(self, event):
-        item = self._get_current_item(event)
-        print [item] + list(self.gettags(item))
     
     def _undo(self, event):
         
