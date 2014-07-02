@@ -27,7 +27,8 @@ class PNEditor(Tkinter.Canvas):
     BIG_GRID_COLOR = '#7777FF'
     
     _MARKING_REGEX = re.compile('^[0-9]+$')
-    _NAME_REGEX = re.compile('^[a-zA-Z0-9_-][a-zA-Z0-9_ -]*$')
+    _NAME_REGEX = re.compile('^[a-zA-Z][a-zA-Z0-9_ -]*$')
+    #_NAME_REGEX = re.compile('^[a-zA-Z][a-zA-Z0-9_ -]*( ?\([a-zA-Z0][a-zA-Z0-9_ -]*(, ?[a-zA-Z0][a-zA-Z0-9_ -]*)*\))?$')
     _TOKEN_RADIUS = 3
     
     def __init__(self, parent, *args, **kwargs):

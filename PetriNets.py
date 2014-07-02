@@ -65,7 +65,7 @@ class Node(object):
         self._outgoing_arcs = {}
         self.hasTreeElement = False
         self._references = set()
-        self._id = self._full_name
+        self._id = self._get_id()
     
     @property
     def name(self):
@@ -81,7 +81,7 @@ class Node(object):
         self._update_id()
     
     def _get_id(self):
-        return self._full_name.replace(' ', '_')
+        return self._full_name.replace(' ', '_').replace('(', '__').replace(')', '__').replace(',', '_')
     
     @property
     def _full_name(self):
