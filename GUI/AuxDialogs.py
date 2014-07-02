@@ -2,7 +2,6 @@
 """
 @author: Adrián Revuelta Cuauhtli
 """
-import os
 import re
 import Tkinter as tk
 import ttk

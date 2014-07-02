@@ -5,6 +5,7 @@
 
 import re
 import Tkinter
+import tkFont
 import tkMessageBox
 
 from copy import deepcopy
@@ -97,6 +98,7 @@ class PNEditor(Tkinter.Canvas):
         
         self._offset = Vec2()
         
+        self.text_font = tkFont.Font(self, family = "Helvetica", size = 14)
         self._anchor_tag = 'all'
         self._anchor_set = False
         
@@ -247,7 +249,8 @@ class PNEditor(Tkinter.Canvas):
             label_id = self.create_text(p.position.x,
                              p.position.y + PetriNet.PLACE_LABEL_PADDING*self._current_scale,
                              text = str(p),
-                             tags=tags )
+                             tags=tags,
+                             font = self.text_font )
             
             if not successful:
                 return
@@ -285,7 +288,8 @@ class PNEditor(Tkinter.Canvas):
                 label_id = self.create_text(t.position.x,
                                  t.position.y + label_padding*self._current_scale,
                                  text = str(t),
-                                 tags=tags )
+                                 tags=tags,
+                                 font = self.text_font )
             
             if not successful:
                 return
@@ -400,7 +404,8 @@ class PNEditor(Tkinter.Canvas):
                     self.create_text(p.position.x,
                              p.position.y + PetriNet.PLACE_LABEL_PADDING*self._current_scale,
                              text = str(p),
-                             tags=tags )
+                             tags=tags,
+                             font = self.text_font )
                     tkMessageBox.showerror('Duplicate name', 'A place of the same type with that name already exists in the Petri Net.')
                     return
             except Exception as e:
@@ -408,7 +413,8 @@ class PNEditor(Tkinter.Canvas):
                 self.create_text(p.position.x,
                              p.position.y + PetriNet.PLACE_LABEL_PADDING*self._current_scale,
                              text = str(p),
-                             tags=tags )
+                             tags=tags,
+                             font = self.text_font )
                 tkMessageBox.showerror('ERROR', str(e))
                 return
             
@@ -416,7 +422,8 @@ class PNEditor(Tkinter.Canvas):
             label_id = self.create_text(p.position.x,
                              p.position.y + PetriNet.PLACE_LABEL_PADDING*self._current_scale,
                              text = str(p),
-                             tags=tags )
+                             tags=tags,
+                             font = self.text_font )
             
             self.addtag_withtag('place_' + repr(p), old_tag)
             self.dtag(item_id, old_tag)
@@ -452,7 +459,8 @@ class PNEditor(Tkinter.Canvas):
                 label_id = self.create_text(t.position.x,
                                  t.position.y + label_padding*self._current_scale,
                                  text = str(t),
-                                 tags=tags )
+                                 tags=tags,
+                                 font = self.text_font )
             
             if not successful:
                 return
@@ -856,7 +864,8 @@ class PNEditor(Tkinter.Canvas):
         self.create_text(p.position.x,
                        p.position.y + PetriNet.PLACE_LABEL_PADDING*self._current_scale,
                        tags = ('label',) + self.gettags(place_id),
-                       text = str(p) )
+                       text = str(p),
+                       font = self.text_font )
         
         return place_id
     
@@ -873,7 +882,8 @@ class PNEditor(Tkinter.Canvas):
             self.create_text(t.position.x,
                            t.position.y + padding*self._current_scale,
                            tags = ('label',) + self.gettags(trans_id),
-                           text = str(t) )
+                           text = str(t),
+                           font = self.text_font )
         
         return trans_id
     
@@ -1279,7 +1289,8 @@ class PNEditor(Tkinter.Canvas):
                          p.position.y,
                          text = str(p.init_marking),
                          tags=tags,
-                         fill = fill )
+                         fill = fill,
+                         font = self.text_font )
     
     def _create_action_place(self):
         """Menu callback to create an ACTION place."""
@@ -1502,7 +1513,8 @@ class PNEditor(Tkinter.Canvas):
             self.create_text(new_p.position.x,
                              new_p.position.y + label_padding*self._current_scale,
                              text = str(new_p),
-                             tags=tags )
+                             tags=tags,
+                             font = self.text_font )
             
             self._add_to_undo(['create_place', 'Create Place.', new_p, Vec2(self._offset), self._current_scale])
             self._place_count += 1
@@ -1540,7 +1552,8 @@ class PNEditor(Tkinter.Canvas):
                 self.create_text(new_t.position.x,
                                  new_t.position.y + label_padding*self._current_scale,
                                  text = str(new_t),
-                                 tags=tags )
+                                 tags=tags,
+                                 font = self.text_font )
             self._add_to_undo(['create_transition', 'Create Transition.', new_t, Vec2(self._offset), self._current_scale])
             self._transition_count += 1
             self.edited = True
@@ -1641,7 +1654,8 @@ class PNEditor(Tkinter.Canvas):
             self.create_text(p.position.x,
                              p.position.y + PetriNet.PLACE_LABEL_PADDING*self._current_scale,
                              text = str(p),
-                             tags=tags )
+                             tags=tags,
+                             font = self.text_font )
             self._draw_item_arcs(p)
             self._add_to_undo(['rename_place', 'Rename Place', p, old_name])
             self.edited = True
@@ -1686,7 +1700,8 @@ class PNEditor(Tkinter.Canvas):
                 self.create_text(t.position.x,
                                  t.position.y + label_padding*self._current_scale,
                                  text = str(t),
-                                 tags=tags )
+                                 tags=tags,
+                                 font = self.text_font )
             self._add_to_undo(['rename_transition', 'Rename Transition.', t, old_name])
             self._draw_item_arcs(t)
             self.edited = True
@@ -1705,7 +1720,8 @@ class PNEditor(Tkinter.Canvas):
             self.create_text(p.position.x,
                              p.position.y + label_padding*self._current_scale,
                              text = str(p),
-                             tags=tags )
+                             tags=tags,
+                             font = self.text_font )
             self._draw_item_arcs(p)
             txtbox.grab_release()
             txtbox.destroy()
@@ -1726,7 +1742,8 @@ class PNEditor(Tkinter.Canvas):
                 self.create_text(t.position.x,
                                  t.position.y + label_padding*self._current_scale,
                                  text = str(t),
-                                 tags=tags )
+                                 tags=tags,
+                                 font = self.text_font )
             txtbox.grab_release()
             txtbox.destroy()
             self.focus_set()
@@ -1774,7 +1791,8 @@ class PNEditor(Tkinter.Canvas):
             self.create_text(text_pos.x,
                              text_pos.y,
                              tags = tags + ('label',),
-                             text = str(arc.weight)
+                             text = str(arc.weight),
+                             font = self.text_font
                              )
         
         

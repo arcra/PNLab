@@ -416,7 +416,7 @@ class PNLab(object):
                                                   defaultextension = '.pnml',
                                                   filetypes=[('Standard PNML file', '*.pnml')],
                                                   title = 'Save as Standard PNML file...',
-                                                  initialdir = os.path.dirname(self.file_path) if self.path is not None else os.path.expanduser('~/Desktop'),
+                                                  initialdir = os.path.dirname(self.file_path) if self.file_path is not None else os.path.expanduser('~/Desktop'),
                                                   initialfile = os.path.basename(self.clicked_element) + '.pnml'
                                                   )
         if not filename:
@@ -432,7 +432,7 @@ class PNLab(object):
                                                   defaultextension = '.pnml.xml',
                                                   filetypes=[('PIPE PNML file', '*.pnml.xml')],
                                                   title = 'Save as PIPE PNML file...',
-                                                  initialdir = os.path.dirname(self.file_path) if self.path is not None else os.path.expanduser('~/Desktop'),
+                                                  initialdir = os.path.dirname(self.file_path) if self.file_path is not None else os.path.expanduser('~/Desktop'),
                                                   initialfile = os.path.basename(self.clicked_element) + '.pnml.xml'
                                                   )
         if not filename:
@@ -531,7 +531,7 @@ class PNLab(object):
                                                   defaultextension = '.rpnp',
                                                   filetypes=[('Robotic Petri Net Plan file', '*.rpnp')],
                                                   title = 'Save as RPNP file...',
-                                                  initialdir = os.path.dirname(self.file_path) if self.path is not None else os.path.expanduser('~/Desktop'),
+                                                  initialdir = os.path.dirname(self.file_path) if self.file_path is not None else os.path.expanduser('~/Desktop'),
                                                   initialfile = os.path.basename(self.file_path) if self.file_path is not None else ''
                                                   )
         if not zip_filename:
