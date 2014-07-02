@@ -144,12 +144,14 @@ class PNEditor(Tkinter.Canvas):
         else:
             self.bind('<3>', self._popup_menu)
         
-        #self.bind('<Double-1>', self._set_connecting)
-        self.bind('<Double-1>', self._test)
+        self.bind('<Double-1>', self._set_connecting)
+        #self.bind('<Double-1>', self._test)
     
+    '''
     def _test(self, event):
         item = self._get_current_item(event)
         print [item] + list(self.gettags(item))
+    '''
     
     def _set_connecting(self, event):
         
