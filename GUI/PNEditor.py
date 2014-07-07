@@ -314,7 +314,7 @@ class PNEditor(Tkinter.Canvas):
             node.position += move_vec
             self._draw_item_arcs(node)
         elif action[0] == 'switch_orientation':
-            name = repr(action[2])
+            name = action[2]
             t = self._petri_net.transitions[name]
             t.isHorizontal = not t.isHorizontal
             
