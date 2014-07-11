@@ -211,7 +211,7 @@ class Place(Node):
         if place_initMarking is not None:
             initMarking = int(place_initMarking.findtext('text'))
         
-        toolspecific_el = element.find('toolspecific[@name="PNLab"]')
+        toolspecific_el = element.find('toolspecific[@tool="PNLab"]')
         try:
             p_type = toolspecific_el.find('type').findtext('text')
             if p_type in [PlaceTypes.ACTION, PlaceTypes.PREDICATE, PlaceTypes.TASK]:
@@ -220,7 +220,7 @@ class Place(Node):
             pass
         
         try:
-            capacity = int(toolspecific_el.find('capacity/text'))
+            capacity = int(toolspecific_el.find('capacity/text').text)
         except:
             capacity = 0
         
@@ -394,26 +394,26 @@ class Transition(Node):
         except:
             position = Vec2()
         
-        toolspecific_el = element.find('toolspecific[@name="PNLab"]')
+        toolspecific_el = element.find('toolspecific[@tool="PNLab"]')
         try:
-            t_type = toolspecific_el.find('type/text')
+            t_type = toolspecific_el.find('type/text').text
             if t_type in [TransitionTypes.IMMEDIATE, TransitionTypes.TIMED_STOCHASTIC]:
                 transition_type = t_type
         except:
             pass
         
         try:
-            isHorizontal = bool(int(toolspecific_el.find('isHorizontal/text')))
+            isHorizontal = bool(int(toolspecific_el.find('isHorizontal/text').text))
         except:
             isHorizontal = False
         
         try:
-            rate = float(toolspecific_el.find('rate/text'))
+            rate = float(toolspecific_el.find('rate/text').text)
         except:
             rate = 1.0
         
         try:
-            priority = int(toolspecific_el.find('priority/text'))
+            priority = int(toolspecific_el.find('priority/text').text)
         except:
             priority = 1
         

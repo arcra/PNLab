@@ -804,7 +804,8 @@ class PNEditor(Tkinter.Canvas):
         
         halo = 10
         item = ''
-        ids = self.find_closest(event.x, event.y, halo)
+        #ids = self.find_closest(event.x, event.y, halo) #This doesn't work when there is no grid.
+        ids = self.find_overlapping(event.x - halo, event.y - halo, event.x + halo, event.y + halo)
         ids = [x for x in ids if 'grid' not in self.gettags(x)]
         if ids:
             item = ids[0]

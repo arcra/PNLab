@@ -37,25 +37,25 @@ class PNLab(object):
         super(PNLab, self).__init__()
         
         self.root = tk.Tk()
-        self.root.wm_title('PetriNet Lab')
+        self.root.wm_title('PNLab')
         self.root.protocol("WM_DELETE_WINDOW", self.exit)
         #Necessary in order for the children to expand to the real size of the window if resized:
         self.root.rowconfigure(1, weight = 1)
         self.root.columnconfigure(2, weight = 1)
         
-        toolbar_frame = tk.Frame(self.root)
-        toolbar_frame.grid(row = 0, column = 2, sticky = tk.E)
+#        toolbar_frame = tk.Frame(self.root)
+#        toolbar_frame.grid(row = 0, column = 2, sticky = tk.E)
         
-        mode_label = tk.Label(toolbar_frame, text = 'mode: ')
-        mode_label.grid(row = 0, column = 0, sticky = tk.E)
+#        mode_label = tk.Label(toolbar_frame, text = 'mode: ')
+#        mode_label.grid(row = 0, column = 0, sticky = tk.E)
         
-        self.mode_var = tk.StringVar()
-        mode_combo = ttk.Combobox(toolbar_frame,
-                                  values = ['Editor', 'Simulation', 'Execution'],
-                                  textvariable = self.mode_var,
-                                  state = 'readonly')
-        self.mode_var.set('Editor')
-        mode_combo.grid(row = 0, column = 1, sticky = tk.E)
+#        self.mode_var = tk.StringVar()
+#        mode_combo = ttk.Combobox(toolbar_frame,
+#                                  values = ['Editor', 'Simulation', 'Execution'],
+#                                  textvariable = self.mode_var,
+#                                  state = 'readonly')
+#        self.mode_var.set('Editor')
+#        mode_combo.grid(row = 0, column = 1, sticky = tk.E)
         
         project_frame = tk.Frame(self.root, width = PNLab.EXPLORER_WIDTH)
         project_frame.grid(row = 1, column = 0, sticky = tk.NSEW)
@@ -218,6 +218,17 @@ class PNLab(object):
             count += 1
         return count
     
+    def _add_pne(self, pn, item_id, open_tab = True):
+        if isinstance(pn, PetriNet):
+            pne = PNEditor(self.tab_manager, PetriNet = pn)
+        else:
+            pne = PNEditor(self.tab_manager, name = pn)
+        self.petri_nets[item_id] = pne
+        if open_tab:
+            self.tab_manager.add(pne, text = pne.name)
+            self.tab_manager.select(pne)
+        return pne
+    
     def create_petri_net(self):
         dialog = InputDialog('Petri Net name',
                              'Please input a Petri Net name, preferably composed only of alphabetic characters.',
@@ -237,9 +248,7 @@ class PNLab(object):
             tkMessageBox.showerror('ERROR', 'Petri Net could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
             return
         
-        pne = PNEditor(self.tab_manager, name = name)
-        self.petri_nets[item_id] = pne
-        self.tab_manager.add(pne, text = pne.name)
+        self._add_pne(name, item_id)
     
     def open_callback(self, event):
         self.clicked_element = self.project_tree.identify('item', event.x, event.y)
@@ -294,9 +303,9 @@ class PNLab(object):
         except Exception as e:
             tkMessageBox.showerror('ERROR', 'Petri Net could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
             return
-        pne = PNEditor(self.tab_manager, PetriNet = pn)
+        
+        pne = self._add_pne(pn, item_id, False)
         pne.edited = False
-        self.petri_nets[item_id] = pne
         return item_id
     
     def import_from_PIPE(self):
@@ -339,11 +348,9 @@ class PNLab(object):
         except Exception as e:
             tkMessageBox.showerror('ERROR', 'Petri Net could not be inserted in the selected node, possible duplicate name.\n\n' + str(e))
             return
-        pne = PNEditor(self.tab_manager, PetriNet = pn)
+        
+        pne = self._add_pne(pn, item_id, True)
         pne.edited = False
-        self.petri_nets[item_id] = pne
-        self.tab_manager.add(pne, text = pne.name)
-        self.tab_manager.select(pne)
     
     def rename_petri_net(self):
         old_name = self.project_tree.item(self.clicked_element, 'text')
