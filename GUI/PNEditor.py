@@ -1497,7 +1497,12 @@ class PNEditor(Tkinter.Canvas):
         """Callback factory function for the <KeyPress-Return> event of the 'create place' entry widget."""
         def txtboxCallback(event):
             txt = txtbox.get()
-            if not (txt[:2] == p.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
+            if not (txt[:2] == p.type[0] + '.' and (
+                                                    PNEditor._NAME_REGEX.match(txt[2:]) or 
+                                                    (p.type == PlaceTypes.PREDICATE
+                                                     and txt[2] in ['r', 'e'] and txt[3] == '.'
+                                                     and PNEditor._NAME_REGEX.match(txt[4:])
+                                                    ))):
                 msg = ('A place name must begin with the first letter of its type and a dot, ' +
                     'followed by a non-empty string, preferably composed of only ' +
                     'alphanumeric characters, dashes or underscores, and possibly spaces. \
@@ -1631,7 +1636,12 @@ class PNEditor(Tkinter.Canvas):
         def txtboxCallback(event):
             old_name = p.name
             txt = txtbox.get()
-            if not (txt[:2] == p.type[0] + '.' and PNEditor._NAME_REGEX.match(txt[2:])):
+            if not (txt[:2] == p.type[0] + '.' and (
+                                                    PNEditor._NAME_REGEX.match(txt[2:]) or 
+                                                    (p.type == PlaceTypes.PREDICATE
+                                                     and txt[2] in ['r', 'e'] and txt[3] == '.'
+                                                     and PNEditor._NAME_REGEX.match(txt[4:])
+                                                    ))):
                 msg = ('A place name must begin with the first letter of its type and a dot, ' +
                     'followed by a non-empty string, preferably composed of only ' +
                     'alphanumeric characters, dashes or underscores, and possibly spaces. \
