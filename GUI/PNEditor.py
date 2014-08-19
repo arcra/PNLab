@@ -67,6 +67,7 @@ class PNEditor(Tkinter.Canvas):
         self._canvas_menu.add_command(label = 'Add Action Place', command = self._create_action_place)
         self._canvas_menu.add_command(label = 'Add Predicate Place', command = self._create_predicate_place)
         self._canvas_menu.add_command(label = 'Add Task Place', command = self._create_task_place)
+        self._canvas_menu.add_command(label = 'Add Regular Place', command = self._create_regular_place)
         self._canvas_menu.add_separator()
         self._canvas_menu.add_command(label = 'Add Immediate Transition', command = self._create_immediate_transition)
         self._canvas_menu.add_command(label = 'Add Stochastic Transition', command = self._create_stochastic_transition)
@@ -1283,15 +1284,11 @@ class PNEditor(Tkinter.Canvas):
             self.scale(tag, p.position.x, p.position.y, self._current_scale, self._current_scale)
             return
         
-        fill = 'black'
-        if p.type == PlaceTypes.PREDICATE:
-            fill = 'white'
-        
         self.create_text(p.position.x,
                          p.position.y,
                          text = str(p.init_marking),
                          tags=tags,
-                         fill = fill,
+                         fill = 'black',
                          font = self.text_font )
     
     def _create_action_place(self):
@@ -1310,6 +1307,12 @@ class PNEditor(Tkinter.Canvas):
         """Menu callback to create an TASK place."""
         self._hide_menu()
         placeType = PlaceTypes.TASK
+        self._create_place(placeType)
+    
+    def _create_regular_place(self):
+        """Menu callback to create an REGULAR place."""
+        self._hide_menu()
+        placeType = PlaceTypes.REGULAR
         self._create_place(placeType)
         
     def _create_place(self, placeType):
@@ -1978,6 +1981,7 @@ class PNEditor(Tkinter.Canvas):
             self.itemconfig('place&&' + PlaceTypes.ACTION + '&&!label&&!token', outline = PetriNet.PLACE_CONFIG[PlaceTypes.ACTION]['outline'], width = PetriNet.LINE_WIDTH)
             self.itemconfig('place&&' + PlaceTypes.PREDICATE + '&&!label&&!token', outline = PetriNet.PLACE_CONFIG[PlaceTypes.PREDICATE]['outline'], width = PetriNet.LINE_WIDTH)
             self.itemconfig('place&&' + PlaceTypes.TASK + '&&!label&&!token', outline = PetriNet.PLACE_CONFIG[PlaceTypes.TASK]['outline'], width = PetriNet.LINE_WIDTH)
+            self.itemconfig('place&&' + PlaceTypes.REGULAR + '&&!label&&!token', outline = PetriNet.PLACE_CONFIG[PlaceTypes.REGULAR]['outline'], width = PetriNet.LINE_WIDTH)
             self.unbind('<Motion>', self._connecting_transition_fn_id)
             self.delete('connecting')
             item = self._get_current_item(event)

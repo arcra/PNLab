@@ -11,7 +11,7 @@ import Tkinter
 import tkFileDialog
 import tkMessageBox
 
-from PetriNets import PetriNet, Place, PlaceTypes, Transition, TransitionTypes, Vec2
+from PetriNets import PetriNet
 from PNEditor import PNEditor
 
 class testWindow(object):

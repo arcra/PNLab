@@ -43,19 +43,19 @@ class PNLab(object):
         self.root.rowconfigure(1, weight = 1)
         self.root.columnconfigure(2, weight = 1)
         
-#        toolbar_frame = tk.Frame(self.root)
-#        toolbar_frame.grid(row = 0, column = 2, sticky = tk.E)
+        toolbar_frame = tk.Frame(self.root)
+        toolbar_frame.grid(row = 0, column = 2, sticky = tk.E)
         
-#        mode_label = tk.Label(toolbar_frame, text = 'mode: ')
-#        mode_label.grid(row = 0, column = 0, sticky = tk.E)
+        mode_label = tk.Label(toolbar_frame, text = 'mode: ')
+        mode_label.grid(row = 0, column = 0, sticky = tk.E)
         
-#        self.mode_var = tk.StringVar()
-#        mode_combo = ttk.Combobox(toolbar_frame,
-#                                  values = ['Editor', 'Simulation', 'Execution'],
-#                                  textvariable = self.mode_var,
-#                                  state = 'readonly')
-#        self.mode_var.set('Editor')
-#        mode_combo.grid(row = 0, column = 1, sticky = tk.E)
+        self.mode_var = tk.StringVar()
+        mode_combo = ttk.Combobox(toolbar_frame,
+                                  values = ['Editor', 'Simulation', 'Execution'],
+                                  textvariable = self.mode_var,
+                                  state = 'readonly')
+        self.mode_var.set('Editor')
+        mode_combo.grid(row = 0, column = 1, sticky = tk.E)
         
         project_frame = tk.Frame(self.root, width = PNLab.EXPLORER_WIDTH)
         project_frame.grid(row = 1, column = 0, sticky = tk.NSEW)
@@ -465,6 +465,14 @@ class PNLab(object):
                                                   )
         if not zip_filename:
             return
+        
+        items = self.project_tree.get_children('Actions/') \
+        + self.project_tree.get_children('CommActions/') \
+        + self.project_tree.get_children('Tasks/') \
+        + self.project_tree.get_children('Environment/')
+        
+        for i in items:
+            self.delete_petri_net(i)
         
         self.file_path = zip_filename
         

@@ -31,6 +31,7 @@ class PlaceTypes(object):
     ACTION = 'action'
     PREDICATE = 'predicate'
     TASK = 'task'
+    REGULAR = 'regular'
 
 class TransitionTypes(object):
     """'Enum' class for Transition types"""
@@ -57,6 +58,27 @@ class Node(object):
         if not name:
             raise Exception('A Node name must be a non-empty string.')
         
+        if nodeType == PlaceTypes.PREDICATE and name[:2] == 'r.':
+            name = name[2:]
+            self._isRunningCondition = True
+        else:
+            self._isRunningCondition = False
+        
+        if nodeType == PlaceTypes.PREDICATE and name[:2] == 'e.':
+            name = name[2:]
+            self._isEffect = True
+        else:
+            self._isEffect = False
+        
+        if nodeType == PlaceTypes.PREDICATE and name[:4] == 'NOT_':
+            name = name[4:]
+            self._isNegated = True
+        else:
+            self._isNegated = False
+        
+        self._isRunningCondition = False
+        self._isEffect = False
+        
         self._name = name
         self._type = nodeType
         self.petri_net = None
@@ -77,6 +99,22 @@ class Node(object):
         if not value:
             raise Exception('A Node name must be a non-empty string.')
         
+        if value[:2] == 'r.':
+            value = value[2:]
+            self._isRunningCondition = True
+        else:
+            self._isRunningCondition = False
+        
+        if value[:2] == 'e.':
+            value = value[2:]
+            self._isEffect = True
+        else:
+            self._isEffect = False
+        
+        if self._type == PlaceTypes.PREDICATE and value[:4] == 'NOT_':
+            value = value[4:]
+            self._isNegated = True
+        
         self._name = value
         self._update_id()
     
@@ -86,7 +124,7 @@ class Node(object):
     @property
     def _full_name(self):
         """Read-only property. Name of the node, INCLUDING the type prefix."""
-        return self._type[0] + '.' + self._name
+        return self._type[0] + '.' + ('e.' if self._isEffect else '') + ('r.' if self._isRunningCondition else '') + ('NOT_' if self._isNegated else '') + self._name
     
     @property
     def type(self):
@@ -194,6 +232,9 @@ class Place(Node):
         elif name[:2] == 't.':
             name = name[2:]
             place_type = PlaceTypes.TASK
+        elif name[:2] == 'r.':
+            name = name[2:]
+            place_type = PlaceTypes.REGULAR
         elif name[:2] == 'p.':
             name = name[2:]
         
@@ -214,7 +255,7 @@ class Place(Node):
         toolspecific_el = element.find('toolspecific[@tool="PNLab"]')
         try:
             p_type = toolspecific_el.find('type').findtext('text')
-            if p_type in [PlaceTypes.ACTION, PlaceTypes.PREDICATE, PlaceTypes.TASK]:
+            if p_type in [PlaceTypes.ACTION, PlaceTypes.PREDICATE, PlaceTypes.TASK, PlaceTypes.REGULAR]:
                 place_type = p_type
         except:
             pass
@@ -223,8 +264,26 @@ class Place(Node):
             capacity = int(toolspecific_el.find('capacity/text').text)
         except:
             capacity = 0
+            
+        try:
+            running = int(toolspecific_el.find('isRunningCondition/text').text)
+        except:
+            running = False
+        
+        try:
+            effect = int(toolspecific_el.find('isEffect/text').text)
+        except:
+            effect = False
+            
+        try:
+            negated = int(toolspecific_el.find('isNegated/text').text)
+        except:
+            negated = False
         
         p = Place(name, place_type, position, initMarking, capacity)
+        p._isRunningCondition = running
+        p._isEffect = effect
+        p._isNegated = negated
         p.hasTreeElement = True
         return p
     
@@ -251,6 +310,18 @@ class Place(Node):
         tmp = ET.SubElement(place_toolspecific, 'capacity')
         tmp = ET.SubElement(tmp, 'text')
         tmp.text = str(int(self.capacity))
+        
+        tmp = ET.SubElement(place_toolspecific, 'isRunningCondition')
+        tmp = ET.SubElement(tmp, 'text')
+        tmp.text = str(int(self._isRunningCondition))
+        
+        tmp = ET.SubElement(place_toolspecific, 'isEffect')
+        tmp = ET.SubElement(tmp, 'text')
+        tmp.text = str(int(self._isEffect))
+        
+        tmp = ET.SubElement(place_toolspecific, 'isNegated')
+        tmp = ET.SubElement(tmp, 'text')
+        tmp.text = str(int(self._isNegated))
         
         tmp = ET.SubElement(place, 'graphics')
         ET.SubElement(tmp, 'position', {'x': str(self.position.x), 'y': str(self.position.y)})
@@ -298,6 +369,18 @@ class Place(Node):
         place_capacity = _get_treeElement(place_toolspecific, 'capacity')
         tmp = _get_treeElement(place_capacity)
         tmp.text = str(self.capacity)
+        
+        place_isRunningCondition = _get_treeElement(place_toolspecific, 'isRunningCondition')
+        tmp = _get_treeElement(place_isRunningCondition)
+        tmp.text = str(int(self._isRunningCondition))
+        
+        place_isEffect = _get_treeElement(place_toolspecific, 'isEffect')
+        tmp = _get_treeElement(place_isEffect)
+        tmp.text = str(int(self._isEffect))
+        
+        place_isNegated = _get_treeElement(place_toolspecific, 'isNegated')
+        tmp = _get_treeElement(place_isNegated)
+        tmp.text = str(int(self._isNegated))
         
         place_graphics = _get_treeElement(place, 'graphics')
         tmp = _get_treeElement(place_graphics, 'position')
@@ -599,12 +682,16 @@ class PetriNet(object):
                             'outline' : '#00AA00'
                             },
                 PlaceTypes.PREDICATE: {
-                            'fill' : '#0000EE',
-                            'outline' : '#0000AA'
+                            'fill' : '#4444FF',
+                            'outline' : '#0000BB'
                             },
                 PlaceTypes.TASK: {
                             'fill' : '#EEEE00',
                             'outline' : '#AAAA00'
+                            },
+                PlaceTypes.REGULAR: {
+                            'fill' : '#FFFFFF',
+                            'outline' : '#444444'
                             }
                 }
     
@@ -756,15 +843,6 @@ class PetriNet(object):
         p.petri_net = None
         return p
     
-    def _pop_place(self, place):
-        
-        if isinstance(place, Place): 
-            key = repr(place)
-        else:
-            key = place
-        
-        return self.places.pop(key, None)
-    
     def remove_transition(self, transition):
         """Removes a transition from the Petri Net.
         
@@ -797,14 +875,35 @@ class PetriNet(object):
         t.petri_net = None
         return t
     
-    def _pop_transition(self, transition):
+    def _pop_place(self, place, extract = True):
+        
+        if isinstance(place, Place): 
+            key = repr(place)
+        else:
+            key = place
+        
+        if key not in self.places:
+            return None
+        
+        if extract:
+            return self.places.pop(key)
+        
+        return self.places[key]
+    
+    def _pop_transition(self, transition, extract = True):
         
         if isinstance(transition, Transition): 
             key = repr(transition)
         else:
             key = transition
         
-        return self.transitions.pop(key, None)
+        if key not in self.transitions:
+            return None
+        
+        if extract:
+            return self.transitions.pop(key)
+        
+        return self.transitions[key]
     
     def rename_place(self, place, value):
         """Renames a place from the Petri Net.
@@ -819,14 +918,22 @@ class PetriNet(object):
         Raises an exception if name is not a non-empty string.
         """
         
-        p = self._pop_place(place)
+        p = self._pop_place(place, False)
         if not p:
             raise Exception('Place object to rename not found in PetriNet.')
         
-        p._set_name(value)
-        
         incoming_arcs = p.incoming_arcs
         outgoing_arcs = p.outgoing_arcs
+        
+        for t in incoming_arcs.keys():
+            self.remove_arc(self.transitions[t], p)
+        
+        for t in outgoing_arcs.keys():
+            self.remove_arc(p, self.transitions[t])
+        
+        p = self._pop_place(place)
+        
+        p._set_name(value)
         
         if not self.add_place(p):
             return False
@@ -851,14 +958,22 @@ class PetriNet(object):
         Raises an exception if name is not a non-empty string.
         """
         
-        t = self._pop_transition(transition)
+        t = self._pop_transition(transition, False)
         if not t:
-            raise Exception('Transition object to rename not found in PetriNet.') 
-        
-        t._set_name(value)
+            raise Exception('Transition object to rename not found in PetriNet.')
         
         incoming_arcs = t.incoming_arcs
         outgoing_arcs = t.outgoing_arcs
+        
+        for p in incoming_arcs.keys() :
+            self.remove_arc(self.places[p], t)
+        
+        for p in outgoing_arcs.keys():
+            self.remove_arc(t, self.places[p])
+        
+        t = self._pop_transition(transition)
+        
+        t._set_name(value)
         
         if not self.add_transition(t):
             return False
