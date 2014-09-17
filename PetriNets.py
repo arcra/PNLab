@@ -52,6 +52,7 @@ class Node(object):
             
             Positional Arguments:
             name -- Any string (preferably only alphanumeric characters, daches and underscores).
+            nodeType -- A class variable from the PlaceTypes or TransitionTypes classes.
             position -- An instance of the Vec2 utility class.
             """
         
@@ -75,9 +76,6 @@ class Node(object):
             self._isNegated = True
         else:
             self._isNegated = False
-        
-        self._isRunningCondition = False
-        self._isEffect = False
         
         self._name = name
         self._type = nodeType
@@ -266,12 +264,20 @@ class Place(Node):
             capacity = 0
             
         try:
-            running = int(toolspecific_el.find('isRunningCondition/text').text)
+            if name[:2] == 'r.':
+                running = True
+                name = name[2:]
+            else:
+                running = int(toolspecific_el.find('isRunningCondition/text').text)
         except:
             running = False
         
         try:
-            effect = int(toolspecific_el.find('isEffect/text').text)
+            if name[:2] == 'e.':
+                effect = True
+                name = name[2:]
+            else:
+                effect = int(toolspecific_el.find('isEffect/text').text)
         except:
             effect = False
             
@@ -660,6 +666,8 @@ class _Arc(object):
     def _merge_treeElement(self):
         
         el = self.petri_net._tree.find('//*[@id="' + self._treeElement + '"]')
+        if el is None:
+            print 'TE: ' + self._treeElement
         el.set('id', self.__repr__())
         weight = _get_treeElement(el, 'inscription')
         _get_treeElement(weight).text = str(self.weight)
@@ -754,7 +762,7 @@ class PetriNet(object):
         Clears the arcs from the place object and adds it to the Petri Net.
         If a place with the same string representation [i. e. str(place_obj)]
         already exists, it can either replace it or do nothing, depending on
-        the second argument.  
+        the second argument.
         
         Arguments:
         p -- A Place object to insert
@@ -939,9 +947,16 @@ class PetriNet(object):
             return False
         
         for key, val in incoming_arcs.items():
-            self.add_arc(self.transitions[key], p, val.weight, val._treeElement)
+            '''
+            NOTE:
+            By removing the arcs from the Petri Net (above), the xml node gets also removed,
+            so the treeElement is not passed to the new Arc object, as there will be no xml node to
+            update. Instead a new arc element will have to be built.
+            '''
+            #self.add_arc(self.transitions[key], p, val.weight, val._treeElement)
+            self.add_arc(self.transitions[key], p, val.weight)
         for key, val in outgoing_arcs.items():
-            self.add_arc(p, self.transitions[key], val.weight, val._treeElement)
+            self.add_arc(p, self.transitions[key], val.weight)
         
         return True
     
@@ -979,9 +994,16 @@ class PetriNet(object):
             return False
         
         for key, val in incoming_arcs.items():
-            self.add_arc(self.places[key], t, val.weight, val._treeElement)
+            '''
+            NOTE:
+            By removing the arcs from the Petri Net (above), the xml node gets also removed,
+            so the treeElement is not passed to the new Arc object, as there will be no xml node to
+            update. Instead a new arc element will have to be built.
+            '''
+            #self.add_arc(self.places[key], t, val.weight, val._treeElement)
+            self.add_arc(self.places[key], t, val.weight)
         for key, val in outgoing_arcs.items():
-            self.add_arc(t, self.places[key], val.weight, val._treeElement)
+            self.add_arc(t, self.places[key], val.weight)
         
         return True
         
