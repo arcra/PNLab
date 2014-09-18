@@ -71,10 +71,13 @@ class PNLab(object):
         workspace_frame.columnconfigure(0, weight = 1)
         
         self.status_bar = tk.Frame(self.root, height = 20)
-        self.status_bar.grid(row = 2, column = 0, sticky = tk.E+tk.W)
+        self.status_bar.grid(row = 2, columnspan=3, sticky = tk.EW)
         
-        self.status_label = tk.Label(self.status_bar)
-        self.status_label.grid(row = 0, column = 0, sticky = tk.W)
+        self.status_var = tk.StringVar()
+        self.status_var.set('Ready.')
+        
+        self.status_label = tk.Label(self.status_bar, textvariable = self.status_var)
+        self.status_label.grid(row = 0, column = 0, sticky = tk.EW)
         
         self.project_tree = ttk.Treeview(project_frame, height = int((PNLab.WORKSPACE_HEIGHT - 20)/20), selectmode = 'browse')
         self.project_tree.heading('#0', text='Project Explorer', anchor=tk.W)
@@ -505,6 +508,8 @@ class PNLab(object):
             
         os.rmdir(tmp_dir)
         zip_file.close()
+        
+        self.status_var.set('Opened: ' + self.file_path)
     
     def save(self, event = None):
         if not self.file_path:
@@ -540,6 +545,18 @@ class PNLab(object):
         
         os.rmdir(tmp_dir)
         zip_file.close()
+        
+        try:
+            tab_id = self.tab_manager.select()
+            if not tab_id:
+                raise Exception()
+        except:
+            self.status_label.configure(textvariable = self.status_var)
+            self.status_var.set('File saved: ' + self.file_path)
+            return
+        
+        pne = self.tab_manager.widget_dict[tab_id]
+        pne.status_var.set('File saved: ' + self.file_path)
     
     def save_as(self):
         zip_filename = tkFileDialog.asksaveasfilename(
@@ -584,6 +601,16 @@ class PNLab(object):
         if not dialog.selection:
             return
         
+        file_location = tkFileDialog.askdirectory(
+                                                  title = 'Save Full Petri Net in...',
+                                                  initialdir = os.path.dirname(self.file_path) if self.file_path is not None else os.path.expanduser('~/Desktop'),
+                                                  parent = self.root,
+                                                  mustexist = True
+                                                  )
+        
+        if not file_location:
+            return
+        
         tmp_dir = tempfile.mkdtemp()
         print tmp_dir
         folders = ('Actions/', 'CommActions/', 'Tasks/', 'Environment/')
@@ -608,13 +635,10 @@ class PNLab(object):
                 model = ET.SubElement(root_models, 'PetriNetModel')
                 tmp = ET.SubElement(model, 'FilePath')
                 tmp.text = os.path.basename(path)
-                #Running Conditions
-                #Desired Effects
-                #Comment
                 
                 for p in pne._petri_net.places.itervalues():
-                    if p.type == PlaceTypes.PREDICATE and repr(p) not in added_predicates and p.name[:4] != 'NOT_':
-                        added_predicates.add(repr(p))
+                    if p.type == PlaceTypes.PREDICATE and p.name not in added_predicates and p.name[:4] != 'NOT_':
+                        added_predicates.add(p.name)
                         pred = ET.SubElement(root_pred, 'Predicate')
                         tmp = ET.SubElement(pred, 'Name')
                         tmp.text = p.name
@@ -622,15 +646,24 @@ class PNLab(object):
                         tmp.text = str(p.init_marking)
                         tmp = ET.SubElement(pred, 'Comment')
                         tmp.text = '...'
+                    
+                    if f == 'Actions/':
+                        if p._isRunningCondition:
+                            tmp = ET.SubElement(model, 'RunningCondition')
+                            tmp.text = ('NOT_' if p._isNegated else '') + p.name
+                        
+                        if p._isEffect:
+                            tmp = ET.SubElement(model, 'DesiredEffect')
+                            tmp.text = ('NOT_' if p._isNegated else '') + p.name
                 
                 file_path = os.path.join(tmp_dir, path)
                 et = pne._petri_net.to_ElementTree()
                 et = pnlab2pipe.convert(et)
                 et.write(file_path, encoding = 'utf-8', xml_declaration = True)
                 
-            models_tree.write(os.path.join(tmp_dir, f, 'AvailableModels.xml'), encoding = 'utf-8', xml_declaration = True)
+            models_tree.write(os.path.join(tmp_dir, f, 'AvailableModels.xml'), encoding = 'utf-8', xml_declaration = True, pretty_print=True)
             
-        predicates_tree.write(os.path.join(tmp_dir, 'PredicatesList.xml'), encoding = 'utf-8', xml_declaration = True)
+        predicates_tree.write(os.path.join(tmp_dir, 'PredicatesList.xml'), encoding = 'utf-8', xml_declaration = True, pretty_print=True)
         
         dir_path = os.path.join(tmp_dir, 'FullPetriNets/')
         os.mkdir(dir_path)
@@ -653,12 +686,18 @@ class PNLab(object):
                 file_path = os.path.join(tmp_dir, path)
                 os.remove(file_path)
             
+            os.remove(os.path.join(tmp_dir, f, 'AvailableModels.xml'))
+            
             dir_path = os.path.join(tmp_dir, f)
             os.rmdir(dir_path)
         
-        #TODO: Ask where to output the file
-        call(['mv', os.path.join(tmp_dir, 'FullPetriNets', dialog.selection + '.pnml'), os.curdir])
+        final_filename = os.path.basename(dialog.selection) + '_full.pnml'
         
+        call(['mv', os.path.join(tmp_dir, 'FullPetriNets', final_filename), os.path.join(file_location, final_filename)])
+        
+        print 'Moved file to: ' + os.path.join(file_location, final_filename)
+        
+        os.remove(os.path.join(tmp_dir, 'PredicatesList.xml'))
         
         dir_path = os.path.join(tmp_dir, 'FullPetriNets')
         os.rmdir(dir_path)

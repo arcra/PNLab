@@ -661,6 +661,8 @@ class _Arc(object):
         tmp = ET.SubElement(tmp, 'text')
         tmp.text = str(self.weight)
         
+        self._treeElement = self.__repr__()
+        
         return arc
     
     def _merge_treeElement(self):
@@ -1226,13 +1228,12 @@ class PetriNet(object):
                     arc._merge_treeElement()
                 else:
                     page.append(arc._build_treeElement())
-            
+
             for arc in p._outgoing_arcs.itervalues():
                 if arc.hasTreeElement:
                     arc._merge_treeElement()
                 else:
                     page.append(arc._build_treeElement())
-        
         
         return copy.deepcopy(self._tree)
     
