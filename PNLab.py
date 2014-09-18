@@ -20,9 +20,9 @@ from lxml import etree as ET
 from subprocess import call
 
 from PetriNets import PetriNet, PlaceTypes
-from TabManager import TabManager
-from PNEditor import PNEditor
-from AuxDialogs import InputDialog, MoveDialog, SelectItemDialog
+from GUI.TabManager import TabManager
+from GUI.PNEditor import PNEditor
+from GUI.AuxDialogs import InputDialog, MoveDialog, SelectItemDialog
 from PNLab2PIPE import pnlab2pipe
 from PIPE2PNLab import pipe2pnlab
 
