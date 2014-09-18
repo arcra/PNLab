@@ -89,8 +89,8 @@ class PNLab(object):
         #ysb.grid(row = 0, column = 1, sticky = tk.NS)
         xsb.grid(row = 1, column = 0, sticky = tk.EW)
         
-        self.folder_img = tk.PhotoImage('folder_img', file = os.path.join(os.path.dirname(__file__), 'img', 'TreeView_Folder.gif'))
-        self.petri_net_img = tk.PhotoImage('petri_net_img', file = os.path.join(os.path.dirname(__file__), 'img', 'doc.gif'))
+        self.folder_img = tk.PhotoImage('folder_img', file = os.path.join(os.path.dirname(__file__), 'GUI', 'img', 'TreeView_Folder.gif'))
+        self.petri_net_img = tk.PhotoImage('petri_net_img', file = os.path.join(os.path.dirname(__file__), 'GUI', 'img', 'doc.gif'))
         self.project_tree.tag_configure('folder', image = self.folder_img)
         self.project_tree.tag_configure('petri_net', image = self.petri_net_img)
         self.project_tree.insert('', 'end', 'Actions/', text = 'Actions/', tags = ['folder'], open = True)
