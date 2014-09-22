@@ -668,7 +668,7 @@ class PNLab(object):
         dir_path = os.path.join(tmp_dir, 'FullPetriNets/')
         os.mkdir(dir_path)
         
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        path = os.path.abspath(os.path.dirname(__file__))
         path = os.path.join(path, 'Analysis_tools', 'expandNet')
         task = os.path.join(tmp_dir, dialog.selection + '.pnml')
         call([path, task])

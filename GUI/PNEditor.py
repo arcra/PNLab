@@ -993,7 +993,7 @@ class PNEditor(Tkinter.Canvas):
         h = self.winfo_height()
         if h == 1:
             h = self.winfo_reqheight()
-        entry_y = self._last_point.y + (PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING + 10)*self._current_scale + 10
+        entry_y = self._last_point.y + (PetriNet.TRANSITION_VERTICAL_LABEL_PADDING + 10)*self._current_scale + 10
         if entry_y > h:
             #old_t.position.y -= entry_y - h
             diff = Vec2(0.0, h - entry_y)
@@ -1362,7 +1362,7 @@ class PNEditor(Tkinter.Canvas):
         h = self.winfo_height()
         if h == 1:
             h = self.winfo_reqheight()
-        entry_y = self._last_point.y + (PetriNet.TRANSITION_HORIZONTAL_LABEL_PADDING + 10)*self._current_scale + 10
+        entry_y = self._last_point.y + (PetriNet.TRANSITION_VERTICAL_LABEL_PADDING + 10)*self._current_scale + 10
         if entry_y > h:
             diff = Vec2(0.0, h - entry_y)
             self.move('all', diff.x, diff.y)
