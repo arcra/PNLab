@@ -612,7 +612,7 @@ class PNLab(object):
             return
         
         tmp_dir = tempfile.mkdtemp()
-        print tmp_dir
+        #print tmp_dir
         folders = ('Actions/', 'CommActions/', 'Tasks/', 'Environment/')
         
         root_pred = ET.Element('AvailablePredicates')
@@ -693,7 +693,7 @@ class PNLab(object):
         
         final_filename = os.path.basename(dialog.selection) + '_full.pnml'
         
-        call(['mv', os.path.join(tmp_dir, 'FullPetriNets', final_filename), os.path.join(file_location, final_filename)])
+        call(['mv', os.path.join(tmp_dir, 'FullPetriNets', final_filename), os.path.join(file_location, final_filename + '.xml')])
         
         print 'Moved file to: ' + os.path.join(file_location, final_filename)
         
