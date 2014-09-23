@@ -227,14 +227,25 @@ class Place(Node):
         if name[:2] == 'a.':
             name = name[2:]
             place_type = PlaceTypes.ACTION
+        elif name[:7] == 'action.':
+            name = name[7:]
+            place_type = PlaceTypes.ACTION
         elif name[:2] == 't.':
             name = name[2:]
+            place_type = PlaceTypes.TASK
+        elif name[:5] == 'task.':
+            name = name[5:]
             place_type = PlaceTypes.TASK
         elif name[:2] == 'r.':
             name = name[2:]
             place_type = PlaceTypes.REGULAR
+        elif name[:8] == 'regular.':
+            name = name[8:]
+            place_type = PlaceTypes.REGULAR
         elif name[:2] == 'p.':
             name = name[2:]
+        elif name[:10] == 'predicate.':
+            name = name[10:]
         
         if not name:
             raise Exception('Place name cannot be an empty string.')
@@ -282,7 +293,11 @@ class Place(Node):
             effect = False
             
         try:
-            negated = int(toolspecific_el.find('isNegated/text').text)
+            if name[:4] == 'NOT_':
+                negated = True
+                name = name[4:]
+            else:
+                negated = int(toolspecific_el.find('isNegated/text').text)
         except:
             negated = False
         
@@ -290,6 +305,7 @@ class Place(Node):
         p._isRunningCondition = running
         p._isEffect = effect
         p._isNegated = negated
+        p._update_id()
         p.hasTreeElement = True
         return p
     
