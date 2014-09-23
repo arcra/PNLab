@@ -1217,10 +1217,15 @@ class PNEditor(Tkinter.Canvas):
                 msg = ('Please input a positive integer number for the marking.')
                 tkMessageBox.showerror('Invalid Marking', msg)
                 return
-            if p.init_marking != int(txt):
+            new_val = int(txt)
+            if new_val > p.capacity:
+                new_val = p.capacity
+                msg = ('Marking cannot exceed the capacity. Value will be truncated.')
+                tkMessageBox.showerror('Invalid Marking', msg)
+            if p.init_marking != new_val:
                 self._add_to_undo(['set_init_marking', 'Set initial marking.', repr(p), p.init_marking])
                 self.edited = True
-            p.init_marking = int(txt)
+            p.init_marking = new_val
             self._draw_marking(canvas_id, p)
             txtbox.grab_release()
             txtbox.destroy()
