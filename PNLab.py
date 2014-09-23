@@ -314,7 +314,7 @@ class PNLab(object):
     def import_from_PIPE(self):
         filename = tkFileDialog.askopenfilename(
                                               defaultextension = '.pnml.xml',
-                                              filetypes=[('PNML file', '*.pnml.xml')],
+                                              filetypes=[('PNML file', '*.pnml.xml'), ('PNML file', '*.pnml')],
                                               title = 'Open PIPE PNML file...',
                                               initialdir = os.path.expanduser('~/Desktop')
                                               )
