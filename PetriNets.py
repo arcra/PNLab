@@ -70,6 +70,12 @@ class Node(object):
             self._isEffect = True
         else:
             self._isEffect = False
+            
+        if nodeType in [PlaceTypes.ACTION, PlaceTypes.TASK] and name[:2] == 'o.':
+            name = name[2:]
+            self._isOutput = True
+        else:
+            self._isOutput = False
         
         if nodeType == PlaceTypes.PREDICATE and name[:4] == 'NOT_':
             name = name[4:]
@@ -99,17 +105,23 @@ class Node(object):
         if not value:
             raise Exception('A Node name must be a non-empty string.')
         
-        if value[:2] == 'r.':
+        if self.type == PlaceTypes.PREDICATE and value[:2] == 'r.':
             value = value[2:]
             self._isRunningCondition = True
         else:
             self._isRunningCondition = False
         
-        if value[:2] == 'e.':
+        if self.type == PlaceTypes.PREDICATE and value[:2] == 'e.':
             value = value[2:]
             self._isEffect = True
         else:
             self._isEffect = False
+            
+        if self.type in [PlaceTypes.ACTION, PlaceTypes.TASK] and value[:2] == 'o.':
+            value = value[2:]
+            self._isOutput = True
+        else:
+            self._isOutput = False
         
         if self._type == PlaceTypes.PREDICATE and value[:4] == 'NOT_':
             value = value[4:]
@@ -120,7 +132,7 @@ class Node(object):
     @property
     def _full_name(self):
         """Read-only property. Name of the node, INCLUDING the type prefix."""
-        return self._type[0] + '.' + ('e.' if self._isEffect else '') + ('r.' if self._isRunningCondition else '') + ('NOT_' if self._isNegated else '') + self._name
+        return self._type[0] + '.' + ('e.' if self._isEffect else '') + ('r.' if self._isRunningCondition else '') + ('o.' if self._isOutput else '') + ('NOT_' if self._isNegated else '') + self._name
     
     @property
     def type(self):
@@ -275,6 +287,15 @@ class Place(Node):
             effect = False
             
         try:
+            if name[:2] == 'o.':
+                output = True
+                name = name[2:]
+            else:
+                output = int(toolspecific_el.find('isOutput/text').text)
+        except:
+            output = False
+            
+        try:
             if name[:4] == 'NOT_':
                 negated = True
                 name = name[4:]
@@ -289,6 +310,7 @@ class Place(Node):
         p._isRunningCondition = running
         p._isEffect = effect
         p._isNegated = negated
+        p._isOutput = output
         p.hasTreeElement = True
         return p
     
@@ -323,6 +345,10 @@ class Place(Node):
         tmp = ET.SubElement(place_toolspecific, 'isEffect')
         tmp = ET.SubElement(tmp, 'text')
         tmp.text = str(int(self._isEffect))
+        
+        tmp = ET.SubElement(place_toolspecific, 'isOutput')
+        tmp = ET.SubElement(tmp, 'text')
+        tmp.text = str(int(self._isOutput))
         
         tmp = ET.SubElement(place_toolspecific, 'isNegated')
         tmp = ET.SubElement(tmp, 'text')
@@ -380,6 +406,10 @@ class Place(Node):
         place_isEffect = _get_treeElement(place_toolspecific, 'isEffect')
         tmp = _get_treeElement(place_isEffect)
         tmp.text = str(int(self._isEffect))
+        
+        place_isOutput = _get_treeElement(place_toolspecific, 'isOutput')
+        tmp = _get_treeElement(place_isOutput)
+        tmp.text = str(int(self._isOutput))
         
         place_isNegated = _get_treeElement(place_toolspecific, 'isNegated')
         tmp = _get_treeElement(place_isNegated)
