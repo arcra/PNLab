@@ -85,14 +85,16 @@ class Node(object):
         self._outgoing_arcs = {}
         self.hasTreeElement = False
         self._references = set()
-        self._id = self._get_id()
+        self._id = name.replace(' ', '_').replace('(', '__').replace(')', '__').replace(',', '_')
     
     @property
     def name(self):
-        """Read-only property. Name of the node, not including the type prefix."""
+        """Returns the name of the node."""
         return self._name
     
-    def _set_name(self, value):
+    @name.setter
+    def name(self, value):
+        """Sets the name of the node. Throws an exception if name is None or an empty string."""
         
         if not value:
             raise Exception('A Node name must be a non-empty string.')
@@ -114,10 +116,6 @@ class Node(object):
             self._isNegated = True
         
         self._name = value
-        self._update_id()
-    
-    def _get_id(self):
-        return self._full_name.replace(' ', '_').replace('(', '__').replace(')', '__').replace(',', '_')
     
     @property
     def _full_name(self):
@@ -144,27 +142,10 @@ class Node(object):
         """
         return copy.deepcopy(self._outgoing_arcs)
     
-    def _update_id(self):
-        
-        old_id = self.__repr__()
-        self._id = self._get_id()
-        
-        if not self.hasTreeElement or not self.petri_net:
-            return
-        
-        el = self.petri_net._tree.find('//*[@id="' + old_id + '"]')
-        el.set('id', self.__repr__())
-        
-        for ref in self.petri_net._tree.findall('//*[@ref="' + old_id + '"]'): 
-            ref.set('ref', self.__repr__())
-        for arc in self.petri_net._tree.findall('//*[@target="' + old_id + '"]'):
-            arc.set('target', self.__repr__())
-        for arc in self.petri_net._tree.findall('//*[@source="' + old_id + '"]'):
-            arc.set('source', self.__repr__())
-    
+    @abc.abstractmethod
     def _merge_treeElement(self):
         """Merges the current ElementTree element information with the previously loaded info."""
-        self._update_id()
+        return
     
     @abc.abstractmethod
     def _build_treeElement(self):
@@ -189,6 +170,7 @@ class Node(object):
 
 class Place(Node):
     """Petri Net Place Class."""
+    
     
     def __init__(self, name, place_type = PlaceTypes.PREDICATE, position = Vec2(), init_marking = 0, capacity = 1):
         """Place constructor
@@ -301,11 +283,12 @@ class Place(Node):
         except:
             negated = False
         
+        #NOTE: PNML renaming is done by the PetriNet procedure where this node is created.
+        
         p = Place(name, place_type, position, initMarking, capacity)
         p._isRunningCondition = running
         p._isEffect = effect
         p._isNegated = negated
-        p._update_id()
         p.hasTreeElement = True
         return p
     
@@ -369,8 +352,6 @@ class Place(Node):
         place_name = _get_treeElement(place, 'name')
         tmp = _get_treeElement(place_name)
         tmp.text = self.__str__()
-        
-        place.set('id', self.__repr__())
         
         if PetriNet.UPDATE_LABEL_OFFSET:
             place_name_graphics = _get_treeElement(place_name, 'graphics') 
@@ -522,6 +503,8 @@ class Transition(Node):
         except:
             priority = 1
         
+        #NOTE: PNML renaming is done by the PetriNet procedure where this node is created.
+        
         t = Transition(name, transition_type, position, isHorizontal, rate, priority)
         t.hasTreeElement = True
         return t
@@ -587,8 +570,6 @@ class Transition(Node):
         transition_name = _get_treeElement(transition, 'name')
         tmp = _get_treeElement(transition_name)
         tmp.text = self.__str__()
-        
-        transition.set('id', self.__repr__())
         
         if PetriNet.UPDATE_LABEL_OFFSET:
             transition_name_graphics = _get_treeElement(transition_name, 'graphics') 
@@ -685,7 +666,7 @@ class _Arc(object):
         
         el = self.petri_net._tree.find('//*[@id="' + self._treeElement + '"]')
         if el is None:
-            print 'TE: ' + self._treeElement
+            print 'DEBUG - TE: ' + self._treeElement
         el.set('id', self.__repr__())
         weight = _get_treeElement(el, 'inscription')
         _get_treeElement(weight).text = str(self.weight)
@@ -701,6 +682,11 @@ class PetriNet(object):
     LINE_WIDTH = 2.0
     PLACE_RADIUS = 25
     PLACE_LABEL_PADDING = PLACE_RADIUS + 15
+    
+    '''
+    #TODO (Possibly):
+    Add prefix field to CONFIG dicts (instead of always taking the first letter of type).
+    '''
     
     PLACE_CONFIG = {
                 PlaceTypes.ACTION: {
@@ -752,6 +738,9 @@ class PetriNet(object):
         self.transitions = {}
         self.scale = 1.0
         
+        self._place_counter = 0
+        self._transition_counter = 0
+        
         root_el = ET.Element('pnml', {'xmlns': 'http://www.pnml.org/version-2009/grammar/pnml'})
         self._tree = ET.ElementTree(root_el)
         page = None
@@ -774,73 +763,48 @@ class PetriNet(object):
             ET.SubElement(_net, 'page', {'id': 'PNLab_top_lvl'})
         
     
-    def add_place(self, p, overwrite = False):
+    def add_place(self, p):
         """Adds a place from the Petri Net.
         
         Clears the arcs from the place object and adds it to the Petri Net.
-        If a place with the same string representation [i. e. str(place_obj)]
-        already exists, it can either replace it or do nothing, depending on
-        the second argument.
         
         Arguments:
         p -- A Place object to insert
-        overwrite -- Indicates whether to overwrite the place
-                    when a place with the same string representation
-                    already exists.
-                    
-        Returns False if a place with the same string representation
-        already exists and overwrite is False. Returns True otherwise.
+        
         """
-        key = repr(p)
-        if key in self.places:
-            if not overwrite:
-                return False
-            else:
-                self.places.pop(key)
+        
+        self._place_counter += 1
+        p._id = "P{:0>3d}".format(self._place_counter)
+        
         p._incoming_arcs = {}
         p._outgoing_arcs = {}
-        self.places[key] = p
+        self.places[repr(p)] = p
         
         p.petri_net = self
-        
-        return True
     
     def add_transition(self, t, overwrite = False):
         """Adds a transition from the Petri Net.
         
         Clears the arcs from the transition object and adds it to the Petri Net.
-        If a transition with the same string representation [i. e. str(transition_obj)]
-        already exists, it can either replace it or do nothing, depending on
-        the second argument.  
         
         Arguments:
         t -- A Transition object to insert
-        overwrite -- Indicates whether to overwrite the transition
-                    when a transition with the same string representation
-                    already exists.
-        
-        Returns False if a transition with the same string representation
-        already exists and overwrite is False. Returns True otherwise.
         """
-        key = repr(t)
-        if key in self.transitions:
-            if not overwrite:
-                return False
-            else:
-                self.transitions.pop(key)
+        
+        self._transition_counter += 1
+        t._id = "T{:0>3d}".format(self._transition_counter)
+        
         t._incoming_arcs = {}
         t._outgoing_arcs = {}
-        self.transitions[key] = t
+        self.transitions[repr(t)] = t
         
         t.petri_net = self
-        
-        return True
     
     def remove_place(self, place):
         """Removes a place from the Petri Net.
         
         Argument 'place' should be either a Place object,
-        or a string representation of a Place object [i. e. str(place_obj)].
+        or a representation of a Place object [i. e. repr(place_obj)].
         
         Returns the removed object. 
         """
@@ -863,17 +827,17 @@ class PetriNet(object):
             el = self._tree.find('//*[@id="' + ref + '"]')
             el.getparent().remove(el)
         
-        p._references.clear()
-        
         p = self.places.pop(key)
+        p._references.clear()
         p.petri_net = None
+        
         return p
     
     def remove_transition(self, transition):
         """Removes a transition from the Petri Net.
         
         Argument 'transition' should be either a Transition object,
-        or a string representation of a Transition object [i. e. str(transition_obj)].
+        or a representation of a Transition object [i. e. str(transition_obj)].
         
         Returns the removed object. 
         """
@@ -895,136 +859,11 @@ class PetriNet(object):
             el = self._tree.find('//*[@id="' + ref + '"]')
             el.getparent().remove(el)
         
-        t._references.clear()
-        
         t = self.transitions.pop(key)
+        t._references.clear()
         t.petri_net = None
+        
         return t
-    
-    def _pop_place(self, place, extract = True):
-        
-        if isinstance(place, Place): 
-            key = repr(place)
-        else:
-            key = place
-        
-        if key not in self.places:
-            return None
-        
-        if extract:
-            return self.places.pop(key)
-        
-        return self.places[key]
-    
-    def _pop_transition(self, transition, extract = True):
-        
-        if isinstance(transition, Transition): 
-            key = repr(transition)
-        else:
-            key = transition
-        
-        if key not in self.transitions:
-            return None
-        
-        if extract:
-            return self.transitions.pop(key)
-        
-        return self.transitions[key]
-    
-    def rename_place(self, place, value):
-        """Renames a place from the Petri Net.
-        
-        Arguments:
-        place -- A Place object or Place string representation to rename.
-        value -- The new name of the place WIHTOUT type prefix.
-                Preferably this field should be composed of only alphanumeric characters, 
-                and possibly underscores or dashes.        
-        
-        Returns true if successful, false otherwise.
-        Raises an exception if name is not a non-empty string.
-        """
-        
-        p = self._pop_place(place, False)
-        if not p:
-            raise Exception('Place object to rename not found in PetriNet.')
-        
-        incoming_arcs = p.incoming_arcs
-        outgoing_arcs = p.outgoing_arcs
-        
-        for t in incoming_arcs.keys():
-            self.remove_arc(self.transitions[t], p)
-        
-        for t in outgoing_arcs.keys():
-            self.remove_arc(p, self.transitions[t])
-        
-        p = self._pop_place(place)
-        
-        p._set_name(value)
-        
-        if not self.add_place(p):
-            return False
-        
-        for key, val in incoming_arcs.items():
-            '''
-            NOTE:
-            By removing the arcs from the Petri Net (above), the xml node gets also removed,
-            so the treeElement is not passed to the new Arc object, as there will be no xml node to
-            update. Instead a new arc element will have to be built.
-            '''
-            #self.add_arc(self.transitions[key], p, val.weight, val._treeElement)
-            self.add_arc(self.transitions[key], p, val.weight)
-        for key, val in outgoing_arcs.items():
-            self.add_arc(p, self.transitions[key], val.weight)
-        
-        return True
-    
-    def rename_transition(self, transition, value):
-        """Renames a transition from the Petri Net.
-        
-        Arguments:
-        place -- A Transition object or Transition string representation to rename.
-        value -- The new name of the transition WIHTOUT type prefix.
-                Preferably this field should be composed of only alphanumeric characters, 
-                and possibly underscores or dashes.        
-        
-        Returns true if successful, false otherwise.
-        Raises an exception if name is not a non-empty string.
-        """
-        
-        t = self._pop_transition(transition, False)
-        if not t:
-            raise Exception('Transition object to rename not found in PetriNet.')
-        
-        incoming_arcs = t.incoming_arcs
-        outgoing_arcs = t.outgoing_arcs
-        
-        for p in incoming_arcs.keys() :
-            self.remove_arc(self.places[p], t)
-        
-        for p in outgoing_arcs.keys():
-            self.remove_arc(t, self.places[p])
-        
-        t = self._pop_transition(transition)
-        
-        t._set_name(value)
-        
-        if not self.add_transition(t):
-            return False
-        
-        for key, val in incoming_arcs.items():
-            '''
-            NOTE:
-            By removing the arcs from the Petri Net (above), the xml node gets also removed,
-            so the treeElement is not passed to the new Arc object, as there will be no xml node to
-            update. Instead a new arc element will have to be built.
-            '''
-            #self.add_arc(self.places[key], t, val.weight, val._treeElement)
-            self.add_arc(self.places[key], t, val.weight)
-        for key, val in outgoing_arcs.items():
-            self.add_arc(t, self.places[key], val.weight)
-        
-        return True
-        
     
     def _can_connect(self, source, target):
         """
@@ -1170,7 +1009,17 @@ class PetriNet(object):
                     except:
                         raise Exception("Referenced node '" + ref.get('ref') + "' was not found.")
                     
-                    pn.places[reference.get('id')]._references.add(ref.get('id'))
+                    place_id = ref.get('id')
+                    pn._place_counter += 1
+                    new_id = 'P{:0>3d}'.format(pn._place_counter)
+                    for e in net.findall('.//referencePlace[@ref="' + place_id + '"]'):
+                        e.set('ref', new_id)
+                    for e in net.findall('.//arc[@source="' + place_id + '"]'):
+                        e.set('source', new_id)
+                    for e in net.findall('.//arc[@target="' + place_id + '"]'):
+                        e.set('target', new_id)
+                    ref.set('id', new_id)
+                    pn.places[reference.get('id')]._references.add(new_id)
                 
                 for ref in net.findall('.//referenceTransition'):
                     reference = ref
@@ -1180,7 +1029,17 @@ class PetriNet(object):
                     except:
                         raise Exception("Referenced node '" + ref.get('ref') + "' was not found.")
                     
-                    pn.transitions[reference.get('id')]._references.add(ref.get('id'))
+                    transition_id = ref.get('id')
+                    pn._transition_counter += 1
+                    new_id = 'P{:0>3d}'.format(pn._transition_counter)
+                    for e in net.findall('.//referenceTransition[@ref="' + transition_id + '"]'):
+                        e.set('ref', new_id)
+                    for e in net.findall('.//arc[@source="' + transition_id + '"]'):
+                        e.set('source', new_id)
+                    for e in net.findall('.//arc[@target="' + transition_id + '"]'):
+                        e.set('target', new_id)
+                    ref.set('id', new_id)
+                    pn.places[reference.get('id')]._references.add(new_id)
                 
                 for arc in current.findall('arc'):
                     source = net.find('.//*[@id="' + arc.get('source') + '"]')
@@ -1219,12 +1078,14 @@ class PetriNet(object):
         
         net = self._tree.find('net')
         page = net.find('page')
+        
         toolspecific = net.find('toolspecific[@tool="PNLab"]')
-        if toolspecific is not None:
-            tmp = _get_treeElement(toolspecific, 'scale')
-            tmp = _get_treeElement(tmp, 'scale')
-            tmp = _get_treeElement(tmp, 'text')
-            tmp.text = str(self.scale)
+        if toolspecific is None:
+            toolspecific = ET.SubElement(net, 'toolspecific', {'tool' : 'PNLab'})
+        tmp = _get_treeElement(toolspecific, 'scale')
+        tmp = _get_treeElement(tmp, 'scale')
+        tmp = _get_treeElement(tmp, 'text')
+        tmp.text = str(self.scale)
         
         for p in self.places.itervalues():
             if p.hasTreeElement:
