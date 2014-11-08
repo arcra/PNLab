@@ -696,7 +696,8 @@ class _Arc(object):
         
         el = self.petri_net._tree.find('//*[@id="' + self._treeElement + '"]')
         if el is None:
-            print 'DEBUG - TE: ' + self._treeElement
+            print 'DEBUG - TE: ' + self._treeElement + ' - TreeName: ' + self.petri_net.name
+            return
         el.set('id', self.__repr__())
         weight = _get_treeElement(el, 'inscription')
         _get_treeElement(weight).text = str(self.weight)

@@ -73,6 +73,7 @@ class PNEditor(Tkinter.Canvas):
         self._canvas_menu.add_command(label = 'Add Stochastic Transition', command = self._create_stochastic_transition)
         self._canvas_menu.add_separator()
         self._canvas_menu.add_command(label = 'Toggle grid', command = self._toggle_grid)
+        self._canvas_menu.add_command(label = "Toggle transition's tags", command = self._toggle_transitions_tags)
         
         self._place_menu = Tkinter.Menu(self, tearoff = 0)
         self._place_menu.add_command(label = 'Rename Place', command = self._rename_place)
@@ -160,6 +161,10 @@ class PNEditor(Tkinter.Canvas):
     def _toggle_grid(self):
         self._grid = not self._grid
         self._draw_petri_net()
+    
+    def _toggle_transitions_tags(self):
+        self._label_transitions = not self._label_transitions
+        self._draw_petri_net() 
     
     def _set_connecting(self, event):
         
