@@ -813,7 +813,7 @@ class PetriNet(object):
         
         p.petri_net = self
     
-    def add_transition(self, t, overwrite = False):
+    def add_transition(self, t):
         """Adds a transition from the Petri Net.
         
         Clears the arcs from the transition object and adds it to the Petri Net.
