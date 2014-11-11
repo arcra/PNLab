@@ -1036,9 +1036,8 @@ class PNEditor(Tkinter.Canvas):
             name = self._get_transition_name(item)
             target = self._petri_net.transitions[name]
             place_vec = target.position - self._source.position
-            trans_vec = -place_vec
             place_point = self._source.position + place_vec.unit*PetriNet.PLACE_RADIUS*self._current_scale
-            transition_point = self._find_intersection(target, trans_vec)
+            transition_point = self._find_intersection(target, self._source)
             self.create_line(place_point.x,
                          place_point.y,
                          transition_point.x,
@@ -1082,13 +1081,11 @@ class PNEditor(Tkinter.Canvas):
             name = self._get_place_name(item)
             target = self._petri_net.places[name]
             place_vec = self._source.position - target.position
-            trans_vec = -place_vec
             target_point = target.position + place_vec.unit*PetriNet.PLACE_RADIUS*self._current_scale
         else:
             target_point = Vec2(event.x, event.y)
-            trans_vec = target_point - self._source.position
         
-        transition_point = self._find_intersection(self._source, trans_vec)
+        transition_point = self._find_intersection(self._source, target)
         self.create_line(transition_point.x,
                      transition_point.y,
                      target_point.x,
@@ -1760,7 +1757,7 @@ class PNEditor(Tkinter.Canvas):
         place_vec = t.position - p.position
         trans_vec = -place_vec
         place_point = p.position + place_vec.unit*PetriNet.PLACE_RADIUS*self._current_scale
-        transition_point = self._find_intersection(t, trans_vec)
+        transition_point = self._find_intersection(t, p)
         
         if isinstance(arc.source, Place):
             src_point = place_point
@@ -1790,8 +1787,57 @@ class PNEditor(Tkinter.Canvas):
                              text = str(arc.weight),
                              font = self.text_font
                              )
+    
+    def _find_intersection(self, t, p):
+        """This is used to compute the point where an arc hits an edge
+            of a transition's graphic representation (rectangle)."""
         
+        if t.isHorizontal:
+            half_width = PetriNet.TRANSITION_HALF_LARGE
+            half_height = PetriNet.TRANSITION_HALF_SMALL
+        else:
+            half_width = PetriNet.TRANSITION_HALF_SMALL
+            half_height = PetriNet.TRANSITION_HALF_LARGE
         
+        half_width *= self._current_scale
+        half_height *= self._current_scale
+        
+        vec = p.position - t.position
+        
+        if vec.x < 0:
+            half_width *= -1
+        if vec.y < 0:
+            half_height *= -1
+        
+        pos = t.position + Vec2(half_width*min(abs(vec.x)/300,1), half_height*min(abs(vec.y)/300,1))
+        
+        vec = p.position - pos
+        
+        #vec2 = "closest corner from vector from t to p" - pos
+        vec2 = t.position + Vec2(half_width, half_height) - pos
+        
+        #vector is vertical => m is infinity
+        if vec.x == 0:
+            return Vec2(pos.x, t.position.y + half_height)
+        
+        # i. e. pos is on the edge (place is further away than 300 from transition... because of how pos is calculated)
+        if vec2.x == 0:
+            return pos
+        
+        #Test vertical side:
+        m1 = vec.y/vec.x
+        m2 = vec2.y/vec2.x
+        if abs(m1) <= abs(m2):
+            x = vec2.x
+            y = m1*x #x0 = y0 = b0 = 0
+            return pos + Vec2(x, y)
+        
+        #Test horizontal side:
+        y = vec2.y
+        x = y/m1 #x0 = y0 = b0 = 0 
+        return pos + Vec2(x, y)
+    
+    '''    
     def _find_intersection(self, t, vec):
         """This is used to compute the point where an arc hits an edge
             of a transition's graphic representation (rectangle)."""
@@ -1827,6 +1873,7 @@ class PNEditor(Tkinter.Canvas):
         y = half_height
         x = y/m #x0 = y0 = b0 = 0 
         return t.position + Vec2(x, y)
+    '''
     
     def _popup_menu(self, event):
         """Determines whether the event ocurred over an existing item and which one to
