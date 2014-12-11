@@ -22,7 +22,7 @@ from subprocess import call
 from PetriNets import PetriNet, PlaceTypes
 from GUI.TabManager import TabManager
 from GUI.PNEditor import PNEditor
-from GUI.AuxDialogs import InputDialog, MoveDialog, SelectItemDialog
+from GUI.AuxDialogs import InputDialog, MoveDialog, SelectItemDialog, PredicateUpdater
 from PNLab2PIPE import pnlab2pipe
 from PIPE2PNLab import pipe2pnlab
 
@@ -117,6 +117,7 @@ class PNLab(object):
         menubar.add_cascade(label = 'File', menu = file_menu)
         
         analysis_menu = tk.Menu(menubar, tearoff = False)
+        analysis_menu.add_command(label="Set Predicate Init Values", command = self.update_predicates)
         analysis_menu.add_command(label="Generate FullPetriNet", command = self.get_full_pn)
         analysis_menu.add_command(label = 'ComputeMC', command = self.computeMC)
         
@@ -591,6 +592,41 @@ class PNLab(object):
     #######################################################
     #                ANALYSIS MENU ACTIONS
     #######################################################
+    
+    def update_predicates(self):
+        
+        folders = ('Actions/', 'CommActions/', 'Tasks/', 'Environment/')
+        
+        preds = {}
+        
+        for f in folders:
+            children = self.project_tree.get_children(f)
+            for current in children:
+                pne = self.petri_nets[current]
+                
+                for p in pne._petri_net.places.itervalues():
+                    if p.type == PlaceTypes.PREDICATE and p.name not in preds:
+                        preds[p.name] = int((p.init_marking > 0) != p._isNegated)
+        
+        dialog = PredicateUpdater(preds)
+        dialog.window.transient(self.root)
+        self.root.wait_window(dialog.window)
+        if not dialog.value_set:
+            return False
+        
+        for f in folders:
+            children = self.project_tree.get_children(f)
+            for current in children:
+                pne = self.petri_nets[current]
+                
+                for p in pne._petri_net.places.itervalues():
+                    if p.type == PlaceTypes.PREDICATE:
+                        p.init_marking = int((dialog.preds[p.name].get() == 'True') != p._isNegated)
+                
+                pne._draw_petri_net()
+        
+        return True
+    
     def get_full_pn(self):
         
         dialog = SelectItemDialog(self.project_tree, None, 'Tasks/')
@@ -615,6 +651,9 @@ class PNLab(object):
         #print tmp_dir
         folders = ('Actions/', 'CommActions/', 'Tasks/', 'Environment/')
         
+        if not self.update_predicates():
+            return
+        
         root_pred = ET.Element('AvailablePredicates')
         predicates_tree = ET.ElementTree(root_pred)
         
@@ -637,16 +676,17 @@ class PNLab(object):
                 tmp.text = os.path.basename(path)
                 
                 for p in pne._petri_net.places.itervalues():
-                    if p.type == PlaceTypes.PREDICATE and p.name not in added_predicates and p.name[:4] != 'NOT_':
-                        added_predicates.add(p.name)
-                        pred = ET.SubElement(root_pred, 'Predicate')
-                        tmp = ET.SubElement(pred, 'Name')
-                        tmp.text = p.name
-                        tmp = ET.SubElement(pred, 'InitialMarking')
-                        tmp.text = str(p.init_marking)
-                        tmp = ET.SubElement(pred, 'Comment')
-                        tmp.text = '...'
                     
+                    if p.type == PlaceTypes.PREDICATE and p.name not in added_predicates:
+                        added_predicates.add(p.name)
+                        predicate = ET.SubElement(root_pred, 'Predicate')
+                        tmp = ET.SubElement(predicate, 'Name')
+                        tmp.text = p.name
+                        tmp = ET.SubElement(predicate, 'InitialMarking')
+                        tmp.text = str(int(p.init_marking != p._isNegated))
+                        tmp = ET.SubElement(predicate, 'Comment')
+                        tmp.text = '...'
+                
                     if f == 'Actions/':
                         if p._isRunningCondition:
                             tmp = ET.SubElement(model, 'RunningCondition')
@@ -662,7 +702,7 @@ class PNLab(object):
                 et.write(file_path, encoding = 'utf-8', xml_declaration = True)
                 
             models_tree.write(os.path.join(tmp_dir, f, 'AvailableModels.xml'), encoding = 'utf-8', xml_declaration = True, pretty_print=True)
-            
+        
         predicates_tree.write(os.path.join(tmp_dir, 'PredicatesList.xml'), encoding = 'utf-8', xml_declaration = True, pretty_print=True)
         
         dir_path = os.path.join(tmp_dir, 'FullPetriNets/')
@@ -705,7 +745,18 @@ class PNLab(object):
         os.rmdir(tmp_dir)
     
     def computeMC(self):
-        pass
+        
+        filename = tkFileDialog.askopenfilename(
+                                                  title = 'Compute MC in...',
+                                                  initialdir = os.path.dirname(self.file_path) if self.file_path is not None else os.path.expanduser('~/Desktop')
+                                            )
+        
+        if not filename:
+            return
+        
+        path = os.path.abspath(os.path.dirname(__file__))
+        path = os.path.join(path, 'Analysis_tools', 'computeMC')
+        call([path, '-s', filename])
 
 if __name__ == '__main__':
     w = PNLab()

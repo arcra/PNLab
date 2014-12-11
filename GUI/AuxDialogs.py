@@ -168,3 +168,82 @@ def SelectItemDialog(src_tree, item, root):
 if __name__ == '__main__':
     w = PositiveIntDialog('test', 'test text', 'test value', 1)
     tk.mainloop()
+
+class PredicateUpdater(object):
+    
+    def __init__(self, preds):
+        super(PredicateUpdater, self).__init__()
+        
+        self.value_set = False
+        
+        self.preds = {}
+        
+        self.window = tk.Toplevel()
+        self.window.title('Predicate Updater')
+        self.window.rowconfigure(0, weight = 1)
+        self.window.columnconfigure(0, weight = 1)
+        
+        self.window.bind('<KeyPress-Escape>', self.cancel_callback)
+        self.window.bind('<KeyPress-Return>', self.ok_callback)
+        
+        main_frame = tk.Frame(self.window, relief = tk.RAISED)
+        main_frame.grid(row = 0, column = 0, sticky = tk.NSEW)
+        main_frame.rowconfigure(0, weight = 1)
+        main_frame.columnconfigure(0, weight = 1)
+        
+        self.canvas = tk.Canvas(main_frame)
+        self.canvas.grid(row = 0, column = 0, sticky = tk.NSEW)
+        
+        ysb = ttk.Scrollbar(self.window, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand = ysb.set)
+        ysb.grid(row = 0, column = 1, sticky = tk.NS)
+        
+        table_frame = tk.Frame(self.canvas)
+        table_frame.columnconfigure(0, weight = 1)
+        
+        self._frame_id = self.canvas.create_window((0,0), window = table_frame, width = 350)
+        table_frame.bind("<Configure>", self.aux_scroll_function)
+        
+        p_list = preds.items()
+        for i in xrange(len(p_list)):
+            
+            row_frame = tk.Frame(table_frame)
+            row_frame.grid(row = i, column = 0, sticky = tk.EW)
+            row_frame.columnconfigure(0, weight = 1)
+            row_frame.columnconfigure(1, weight = 1)
+            
+            name, marking = p_list[i]
+            label = tk.Label(row_frame, text = name, anchor = tk.W)
+            label.grid(row = 0, column = 0, sticky = tk.W)
+            
+            var = tk.StringVar()
+            var.set(str(bool(marking)))
+            
+            option = tk.OptionMenu(row_frame, var, 'True', 'False')
+            option.grid(row = 0, column = 1, sticky = tk.E)
+            self.preds[name] = var
+        
+        button_frame = tk.Frame(self.window)
+        button_frame.grid(row = 1, column = 0, sticky = tk.N)
+        
+        cancel_button = tk.Button(button_frame, text = 'Cancel', command = self.cancel_callback)
+        ok_button = tk.Button(button_frame, text = 'Ok', command = self.ok_callback)
+        
+        cancel_button.grid(row = 0, column = 0)
+        ok_button.grid(row = 0, column = 1)
+        
+        self.window.grab_set()
+        self.window.focus_set()
+    
+    def aux_scroll_function(self,event):
+        #You need to set a max size for frameTwo. Otherwise, it will grow as needed, and scrollbar do not act
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        
+        #self.canvas.itemconfig(self._frame_id, width = event.width)
+    
+    def cancel_callback(self, event = None):
+        self.window.destroy()
+    
+    def ok_callback(self, event = None):
+        self.value_set = True
+        self.window.destroy()
