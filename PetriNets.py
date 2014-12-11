@@ -102,9 +102,6 @@ class Node(object):
     def name(self, value):
         """Sets the name of the node. Throws an exception if name is None or an empty string."""
         
-        if not value:
-            raise Exception('A Node name must be a non-empty string.')
-        
         if self.type == PlaceTypes.PREDICATE and value[:2] == 'r.':
             value = value[2:]
             self._isRunningCondition = True
@@ -126,6 +123,9 @@ class Node(object):
         if self._type == PlaceTypes.PREDICATE and value[:4] == 'NOT_':
             value = value[4:]
             self._isNegated = True
+        
+        if not value:
+            raise Exception('A Node name must be a non-empty string.')
         
         self._name = value
     
