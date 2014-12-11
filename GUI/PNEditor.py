@@ -1037,7 +1037,7 @@ class PNEditor(Tkinter.Canvas):
             target = self._petri_net.transitions[name]
             place_vec = target.position - self._source.position
             place_point = self._source.position + place_vec.unit*PetriNet.PLACE_RADIUS*self._current_scale
-            transition_point = self._find_intersection(target, self._source)
+            transition_point = self._find_intersection(target, self._source.position)
             self.create_line(place_point.x,
                          place_point.y,
                          transition_point.x,
@@ -1085,7 +1085,7 @@ class PNEditor(Tkinter.Canvas):
         else:
             target_point = Vec2(event.x, event.y)
         
-        transition_point = self._find_intersection(self._source, target)
+        transition_point = self._find_intersection(self._source, target_point)
         self.create_line(transition_point.x,
                      transition_point.y,
                      target_point.x,
@@ -1757,7 +1757,7 @@ class PNEditor(Tkinter.Canvas):
         place_vec = t.position - p.position
         trans_vec = -place_vec
         place_point = p.position + place_vec.unit*PetriNet.PLACE_RADIUS*self._current_scale
-        transition_point = self._find_intersection(t, p)
+        transition_point = self._find_intersection(t, p.position)
         
         if isinstance(arc.source, Place):
             src_point = place_point
@@ -1788,7 +1788,7 @@ class PNEditor(Tkinter.Canvas):
                              font = self.text_font
                              )
     
-    def _find_intersection(self, t, p):
+    def _find_intersection(self, t, p_position):
         """This is used to compute the point where an arc hits an edge
             of a transition's graphic representation (rectangle)."""
         
@@ -1802,7 +1802,7 @@ class PNEditor(Tkinter.Canvas):
         half_width *= self._current_scale
         half_height *= self._current_scale
         
-        vec = p.position - t.position
+        vec = p_position - t.position
         
         if vec.x < 0:
             half_width *= -1
@@ -1811,7 +1811,7 @@ class PNEditor(Tkinter.Canvas):
         
         pos = t.position + Vec2(half_width*min(abs(vec.x)/300,1), half_height*min(abs(vec.y)/300,1))
         
-        vec = p.position - pos
+        vec = p_position - pos
         
         #vec2 = "closest corner from vector from t to p" - pos
         vec2 = t.position + Vec2(half_width, half_height) - pos
